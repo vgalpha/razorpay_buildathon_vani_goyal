@@ -157,8 +157,9 @@
   .plain-summary.warn { border-color: rgba(242,169,59,0.4); }
   .plain-summary svg { flex-shrink: 0; }
 
-  /* Small secondary toggle -- only the engine-trace (pass timings) section
-     still uses this. Everything else in "Summary" is always visible now. */
+  /* Small secondary toggle -- used for the engine-trace (pass timings)
+     section and the "customize this batch" panel. Everything else in
+     "Summary" is always visible now. */
   .tech-toggle {
     background: none; border: none; color: var(--text-dim); font-size: 12.5px;
     cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 5px;
@@ -168,6 +169,29 @@
   .tech-toggle.open svg { transform: rotate(90deg); }
   #technical-detail { display: none; margin-top: 14px; }
   #technical-detail.open { display: block; }
+
+  /* ---------- "customize this batch" (optional) panel on the hero ---------- */
+  .customize-panel {
+    text-align: left; width: 100%; max-width: 480px; margin: -8px auto 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .customize-panel .hint { font-size: 12px; color: var(--text-dim); margin: 0 0 14px; line-height: 1.5; }
+  .customize-field-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--border-soft);
+  }
+  .customize-field-row label { font-size: 13px; font-weight: 500; }
+  .customize-num {
+    width: 90px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 7px; padding: 6px 10px; font-family: var(--sans); font-size: 13px; text-align: right;
+  }
+  .customize-num:focus { outline: none; border-color: var(--accent); }
+  .customize-fault-list { max-height: 260px; overflow-y: auto; }
+  .customize-fault-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
+  .customize-fault-row .name { font-size: 12.5px; }
+  .customize-fault-row .name .desc { display: block; font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  .customize-fault-row .customize-num { width: 64px; }
 
   section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   section h2 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin: 0 0 12px; }
@@ -396,6 +420,24 @@
         English &mdash; exactly why it flagged the rest for a human to look at.
       </p>
       <button id="btn-generate" class="btn primary">Generate sample data</button>
+
+      <button id="customize-toggle" class="tech-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+        Customize this batch (optional)
+      </button>
+      <div id="customize-panel" class="customize-panel" hidden>
+        <p class="hint">
+          Leave everything blank for a randomly-sized batch that varies a little each time.
+          Fill in only what you want to control &mdash; anything left blank uses its default.
+        </p>
+        <div class="customize-field-row">
+          <label for="cfg-total">Total transactions (approx.)</label>
+          <input id="cfg-total" class="customize-num" type="number" min="20" max="1000" placeholder="auto">
+        </div>
+        <div id="customize-fault-list" class="customize-fault-list">
+          <p class="empty" style="padding:8px 0;">Loading fault types&hellip;</p>
+        </div>
+      </div>
     </div>
 
     <div id="stage-ready" hidden>
@@ -619,6 +661,51 @@ function showStage(name) {
   }
 }
 
+// ------------------------------------------------- customize batch (optional) --
+// Collapsed by default -- the primary path stays a single button for a
+// non-technical user. Fault-type list is fetched lazily (only once, on
+// first expand) from /taxonomy, which reflects taxonomy.py rather than
+// duplicating the 16-item list here.
+let taxonomyCache = null;
+
+$("customize-toggle").addEventListener("click", async () => {
+  const opening = $("customize-panel").hidden;
+  $("customize-panel").hidden = !opening;
+  $("customize-toggle").classList.toggle("open", opening);
+  $("customize-toggle").lastChild.textContent = opening ? "Hide customization" : "Customize this batch (optional)";
+  if (opening && !taxonomyCache) await loadTaxonomyIntoCustomizePanel();
+});
+
+async function loadTaxonomyIntoCustomizePanel() {
+  try {
+    const data = await api("/taxonomy");
+    taxonomyCache = data.fault_types;
+    $("customize-fault-list").innerHTML = taxonomyCache.map((ft) => `
+      <div class="customize-fault-row">
+        <span class="name">${humanize(ft.fault_type)}<span class="desc">${ft.description}</span></span>
+        <input class="customize-num" type="number" min="0" data-fault-type="${ft.fault_type}" placeholder="${ft.default_count}">
+      </div>
+    `).join("");
+  } catch (e) {
+    $("customize-fault-list").innerHTML = `<p class="empty" style="padding:8px 0;">Couldn't load fault types: ${e.message}</p>`;
+  }
+}
+
+// Blank fields mean "use the default sizing" -- only include a key in the
+// request body for a field the user actually typed into.
+function readCustomizeInputs() {
+  const body = {};
+  const total = $("cfg-total").value.trim();
+  if (total !== "") body.total_cases = parseInt(total, 10);
+  const faultCounts = {};
+  document.querySelectorAll("#customize-fault-list [data-fault-type]").forEach((input) => {
+    const v = input.value.trim();
+    if (v !== "") faultCounts[input.dataset.faultType] = parseInt(v, 10);
+  });
+  if (Object.keys(faultCounts).length) body.fault_counts = faultCounts;
+  return body;
+}
+
 // ---------------------------------------------------------- generate data --
 $("btn-generate").addEventListener("click", generateBatch);
 
@@ -628,7 +715,7 @@ async function generateBatch() {
   try {
     const data = await api("/batches", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ order_mode: "synthetic" }),
+      body: JSON.stringify({ order_mode: "synthetic", ...readCustomizeInputs() }),
     });
     batchId = data.batch_id;
     datasetSummary = { payments: data.payments, settlement_lines: data.settlement_lines, invoices: data.invoices, cases: data.cases };

@@ -21,7 +21,6 @@ from . import orders_source
 SEED = 42
 BASE_TS = 1_735_000_000
 METHODS = list(FEE_RATE_BY_METHOD)
-TOTAL_ORDERS_NEEDED = sum(spec.count for spec in TAXONOMY.values())
 
 
 @dataclass
@@ -277,13 +276,50 @@ _BUILDERS = {
 }
 
 
-def generate_dataset(seed=SEED, order_mode="synthetic") -> Dataset:
+def generate_dataset(seed=SEED, order_mode="synthetic", fault_counts=None) -> Dataset:
+  """fault_counts, if given, is a {fault_type: count} dict overriding
+  TAXONOMY's default counts -- every key must be a valid fault_type, missing
+  keys fall back to that class's TAXONOMY default. Left as None (the only
+  path run.py and the test suite use), output is byte-identical to before
+  this parameter existed -- the seed-42/207-case verified benchmark depends
+  on that. Deciding *what* counts to pass (jittered for variety, scaled to
+  a target total, or explicit per-class overrides) is deliberately not this
+  function's job -- see api.py, which resolves the actual dict from the
+  request and keeps this function pure and easy to reason about."""
+  counts = {ft: spec.count for ft, spec in TAXONOMY.items()}
+  if fault_counts:
+    counts.update(fault_counts)
   rng = random.Random(seed)
-  order_ids = orders_source.load_orders(
-    TOTAL_ORDERS_NEEDED, mode=order_mode, seed=seed)
+  total_orders = sum(counts.values())
+  order_ids = orders_source.load_orders(total_orders, mode=order_mode, seed=seed)
   orders = iter(order_ids)
   ds = Dataset(payments=[], settlement_lines=[], ground_truth=[], invoices=[])
-  for fault_type, spec in TAXONOMY.items():
-    _BUILDERS[fault_type](rng, ds, spec.count, orders)
+  for fault_type in TAXONOMY:
+    _BUILDERS[fault_type](rng, ds, counts[fault_type], orders)
   rng.shuffle(ds.payments)
   return ds
+
+
+def jitter_taxonomy_counts(seed, spread=0.3):
+  """A {fault_type: count} dict with each class's default count bumped up by
+  a seeded random amount (never down) -- e.g. quarantine's 5 default cases
+  cycle through 5 distinct malformation types (see _build_quarantine), so
+  jittering downward would silently drop coverage of some of them. Deter-
+  ministic per seed, using its own RNG stream independent of the one
+  generate_dataset uses to build records, so this can be computed up front
+  without affecting record generation."""
+  rng = random.Random(seed)
+  return {
+    ft: rng.randint(spec.count, max(spec.count, round(spec.count * (1 + spread))))
+    for ft, spec in TAXONOMY.items()
+  }
+
+
+def scale_taxonomy_counts(total_cases):
+  """A {fault_type: count} dict with every class's default count scaled
+  proportionally so the total is close to total_cases (at least 1 per
+  class). Deterministic -- no randomness -- since a user asking for a
+  specific total is asking for predictable sizing, not more variety."""
+  base_total = sum(spec.count for spec in TAXONOMY.values())
+  scale = total_cases / base_total
+  return {ft: max(1, round(spec.count * scale)) for ft, spec in TAXONOMY.items()}
