@@ -137,6 +137,7 @@
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
   .card .label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
   .card .value { font-size: 30px; margin-top: 8px; font-weight: 650; letter-spacing: -0.01em; }
+  .card .value-note { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
   .card.safety .value.zero { color: var(--good); }
   .card.safety .value.nonzero { color: var(--bad); }
 
@@ -660,7 +661,7 @@ function render(data, { justRan = false, viewingHistorical = false, createdAt = 
     ? `Viewing a past run &middot; <strong>${when(createdAt)}</strong> &middot; ${data.eval.total_cases.toLocaleString()} transactions`
     : `<strong>Just reconciled</strong> &middot; ${data.eval.total_cases.toLocaleString()} transactions in ${(data.wall_time_seconds * 1000).toFixed(1)}ms`;
   $("results-status").innerHTML = statusText;
-  renderCards(data.eval);
+  renderCards(data.eval, data.wall_time_seconds);
   renderPlainSummary(data.eval, data.invariants);
   renderInvariants(data.invariants);
   renderTable("fault-class-table", data.eval.per_fault_class);
@@ -671,12 +672,25 @@ function render(data, { justRan = false, viewingHistorical = false, createdAt = 
   $("results").classList.add("show");
 }
 
-function renderCards(ev) {
+function renderCards(ev, wallTimeSeconds) {
   const zero = ev.false_auto_close_rate === 0;
+  const ms = wallTimeSeconds * 1000;
+  // The headline number here is the real, measured wall-clock time for
+  // this exact batch -- not the records/sec figure. That figure (below, as
+  // a note, not the primary value) is genuinely derived from this run's
+  // own timing (cases / wall_time_seconds, see reconciler/evaluate.py) but
+  // extrapolated to a per-second rate; the batch itself finishes in
+  // single-digit milliseconds, so "84,200/s" was reading as an unexplained
+  // and seemingly made-up number. "≈" and "at this rate" make the
+  // extrapolation explicit instead of implying 84,200 records actually ran.
   $("metric-cards").innerHTML = `
     <div class="card"><div class="label">Accuracy</div><div class="value">${pct(ev.overall_accuracy)}</div></div>
     <div class="card safety"><div class="label">Incorrect approvals</div><div class="value ${zero ? "zero" : "nonzero"}">${pct(ev.false_auto_close_rate)}</div></div>
-    <div class="card"><div class="label">Speed</div><div class="value">${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s</div></div>
+    <div class="card">
+      <div class="label">Time taken</div>
+      <div class="value">${ms < 1000 ? ms.toFixed(1) + "ms" : (ms / 1000).toFixed(2) + "s"}</div>
+      <div class="value-note">&asymp; ${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s at this rate</div>
+    </div>
     <div class="card"><div class="label">Transactions checked</div><div class="value">${ev.total_cases.toLocaleString()}</div></div>
   `;
 }
