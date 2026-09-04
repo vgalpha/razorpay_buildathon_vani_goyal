@@ -73,8 +73,13 @@ Then open `frontend/index.html` directly in a browser (it talks to
 International/FX-converted payments settle in INR after conversion, and this
 engine has no FX model. It correctly refuses to auto-close these (never
 mis-closes one), but it can only label them a generic amount mismatch, not
-identify the true cause. Stated here, and on its own screen in the report/
-frontend — not a footnote.
+identify the true cause.
+
+By the time a payment reaches the reconciler its currency is already INR and
+carries no FX marker, so there's no honest way to tag which specific
+`amount_mismatch` rows are FX-caused in the UI without peeking at the
+generator's answer key — doing that would defeat the point of the exercise.
+This gap is disclosed here instead of as a claim the UI can't actually back up.
 
 ## Data sources
 

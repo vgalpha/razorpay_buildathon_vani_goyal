@@ -198,9 +198,6 @@
   .trace-line.reveal { opacity: 0; transform: translateY(4px); transition: opacity 0.28s ease, transform 0.28s ease; }
   .trace-line.reveal.show { opacity: 1; transform: translateY(0); }
 
-  .limitations { border: 1px solid var(--warn); background: rgba(242, 169, 59, 0.06); margin-top: 14px; }
-  .limitations h2 { color: var(--warn); }
-
   .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .chip { font-size: 12px; padding: 6px 10px; }
   .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -286,6 +283,30 @@
     display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 9px;
     border-radius: 20px; background: rgba(242,169,59,0.12); color: var(--warn); white-space: nowrap;
   }
+  .exc-row { cursor: pointer; }
+  .exc-row:hover td { background: var(--panel-2); }
+  .exc-row td:first-child { position: relative; }
+  .exc-caret { display: inline-block; margin-right: 6px; color: var(--text-dimmer); transition: transform 0.15s; font-size: 10px; }
+  .exc-row.open .exc-caret { transform: rotate(90deg); color: var(--text-dim); }
+  .exc-detail-row { background: var(--panel-2); border-bottom: 1px solid var(--border-soft); }
+  .exc-detail-row td { background: var(--panel-2); padding: 14px; border-bottom: 1px solid var(--border-soft); }
+  .exc-detail-hint { font-size: 12px; color: var(--text-dim); margin: 0 0 10px; }
+  .record-drill-down { display: flex; flex-wrap: wrap; gap: 10px; }
+  .record-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 13px; min-width: 200px; flex: 1 1 200px;
+  }
+  .record-card-kind { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); margin-bottom: 6px; }
+  .record-card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+  .record-card dt { font-size: 11.5px; color: var(--text-dim); }
+  .record-card dd { font-size: 12.5px; margin: 0; text-align: right; }
+  .quarantine-list { display: flex; flex-direction: column; }
+  .quarantine-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .quarantine-row:hover { background: var(--panel-2); }
+  .quarantine-row .exc-badge { background: rgba(239,91,91,0.12); color: var(--bad); }
 
   /* ---------- floating "ask a question" widget -- fixed position so it's
      reachable from any scroll depth, never buried at the bottom of a long
@@ -443,15 +464,14 @@
                  single source of truth rather than duplicating this markup. -->
             <div id="exceptions"></div>
           </section>
-          <section class="limitations">
-            <h2>Known limitation &mdash; disclosed on purpose</h2>
-            <p style="font-size:13px; line-height:1.6; margin:0;">
-              <strong>International / cross-border payments settled in INR after FX conversion are not modeled.</strong>
-              TieOut has no currency-conversion logic, so it correctly refuses to auto-close these (it never mis-closes
-              a case it doesn't understand) &mdash; but it can only label the discrepancy a generic <code>amount_mismatch</code>,
-              not identify the true FX cause. This is a safe-failure gap: it over-flags rather than guessing, and we're
-              stating it here rather than hiding it.
+          <section id="quarantine-section" style="padding:0; overflow:hidden; margin-top:14px;" hidden>
+            <h2 style="padding:16px 18px 0;">Isolated at ingest &mdash; not a transaction problem</h2>
+            <p style="padding:6px 18px 14px; font-size:12.5px; color:var(--text-dim); line-height:1.5;">
+              These records were structurally broken (missing order ID, bad amount, unreadable date) before matching
+              even started. This isn't something to reconcile &mdash; it's a data-quality issue to raise with whoever
+              owns the upstream export or integration.
             </p>
+            <div id="quarantine-list" class="quarantine-list"></div>
           </section>
         </div>
 
@@ -755,9 +775,83 @@ function renderTable(tableId, data) {
 // paginated components and must not share a page cursor.
 const EXC_PAGE_SIZE = 25;
 let exceptionsAll = [];
+let quarantineAll = [];
 let exceptionFilter = "all";
 let exceptionSearch = "";
 let exceptionPage = 0;
+
+// ------------------------------------------------- source-record drill-down --
+// Every flagged (or quarantined) case links back to the real payment/
+// settlement/invoice rows it was decided from via record_ids. The exceptions
+// table only ever showed a category + a sentence -- an accountant acting on
+// "missing settlement" or "amount mismatch" needs the actual numbers, not a
+// description of them. Clicking a row resolves record_ids against the same
+// dataset the preview tab already fetches (loaded lazily here too, so this
+// works even if the user never opened "View data").
+// Two independent expansion cursors -- one flagged row and one quarantine
+// row can be open at the same time, they're unrelated sections and sharing
+// a single cursor made expanding one silently leave the other's DOM stale.
+let expandedExceptionId = null;
+let expandedQuarantineId = null;
+let expandedLoading = false;
+let datasetIndex = null; // id -> { kind: "payment"|"settlement"|"invoice", record }
+
+function buildDatasetIndex() {
+  const idx = {};
+  datasetCache.payments.forEach((r) => { idx[r.id] = { kind: "payment", record: r }; });
+  datasetCache.settlement_lines.forEach((r) => { idx[r.entity_id] = { kind: "settlement", record: r }; });
+  datasetCache.invoices.forEach((r) => { idx[r.id] = { kind: "invoice", record: r }; });
+  return idx;
+}
+
+async function ensureDatasetCache() {
+  if (!batchId) return null;
+  if (!datasetCache) {
+    try { datasetCache = await api(`/batches/${batchId}/data`); }
+    catch (e) { return null; }
+  }
+  if (!datasetIndex) datasetIndex = buildDatasetIndex();
+  return datasetCache;
+}
+
+const DRILL_DOWN_KIND_LABEL = { payment: "Payment", settlement: "Settlement", invoice: "Invoice" };
+const DRILL_DOWN_COLUMNS = { payment: "payments", settlement: "settlement_lines", invoice: "invoices" };
+
+function renderRecordCard(kind, record) {
+  const cols = RECORD_COLUMNS[DRILL_DOWN_COLUMNS[kind]];
+  return `
+    <div class="record-card">
+      <div class="record-card-kind">${DRILL_DOWN_KIND_LABEL[kind]}</div>
+      <dl>
+        ${cols.map((c) => `<dt>${c.label}</dt><dd class="${c.mono ? "mono" : ""}">${c.fmt ? c.fmt(record[c.key]) : (record[c.key] ?? "—")}</dd>`).join("")}
+      </dl>
+    </div>`;
+}
+
+function renderDrillDown(recordIds) {
+  if (expandedLoading || !datasetIndex) return `<p class="exc-detail-hint">Loading source records&hellip;</p>`;
+  const hits = (recordIds || []).map((id) => datasetIndex[id]).filter(Boolean);
+  if (!hits.length) return `<p class="exc-detail-hint">No matching source records found for this case.</p>`;
+  return `
+    <p class="exc-detail-hint">Source records this decision was made from:</p>
+    <div class="record-drill-down">${hits.map((h) => renderRecordCard(h.kind, h.record)).join("")}</div>`;
+}
+
+async function toggleDrillDown(caseId, getExpanded, setExpanded, rerender) {
+  if (getExpanded() === caseId) {
+    setExpanded(null);
+    rerender();
+    return;
+  }
+  setExpanded(caseId);
+  if (!datasetIndex) {
+    expandedLoading = true;
+    rerender();
+    await ensureDatasetCache();
+    expandedLoading = false;
+  }
+  rerender();
+}
 
 const EXC_SKELETON = `
   <div class="exc-toolbar">
@@ -793,22 +887,59 @@ function ensureExceptionsSkeleton() {
   });
   $("exc-prev").addEventListener("click", () => { exceptionPage--; renderExceptionsTable(); });
   $("exc-next").addEventListener("click", () => { exceptionPage++; renderExceptionsTable(); });
+  $("exc-table-wrap").addEventListener("click", (e) => {
+    const row = e.target.closest(".exc-row");
+    if (!row) return;
+    toggleDrillDown(
+      row.dataset.caseId,
+      () => expandedExceptionId, (v) => { expandedExceptionId = v; },
+      renderExceptionsTable);
+  });
 }
 
 function initExceptions(decisions) {
   exceptionsAll = decisions.filter((d) => d.decision === "escalate");
+  quarantineAll = decisions.filter((d) => d.decision === "quarantine");
   exceptionFilter = "all";
   exceptionSearch = "";
   exceptionPage = 0;
+  expandedExceptionId = null;
+  expandedQuarantineId = null;
+  datasetIndex = null;
   // Table first (rebuilds the skeleton, or shows the empty state) -- only
   // then can the filter chips safely assume #exc-filters exists.
   renderExceptionsTable();
   renderExceptionFilters();
+  renderQuarantineSection();
   // A rebuilt skeleton's search input already starts empty; an existing
   // one (reused across runs that both had flagged items) needs its old
   // search text cleared explicitly, or it'd show stale text while
   // exceptionSearch itself has already been reset above.
   if ($("exc-search")) $("exc-search").value = "";
+}
+
+function renderQuarantineSection() {
+  if (!quarantineAll.length) {
+    $("quarantine-section").hidden = true;
+    return;
+  }
+  $("quarantine-section").hidden = false;
+  $("quarantine-list").innerHTML = quarantineAll.map((d) => `
+    <div>
+      <div class="quarantine-row" data-case-id="${d.case_id}">
+        <span class="exc-badge">Quarantined</span>
+        <span class="mono" style="font-size:13px;">${d.case_id}</span>
+        <span style="font-size:13px; color:var(--text-dim);">${d.reason_detail}</span>
+      </div>
+      ${expandedQuarantineId === d.case_id ? `<div class="exc-detail-row" style="padding:14px;">${renderDrillDown(d.record_ids)}</div>` : ""}
+    </div>
+  `).join("");
+  $("quarantine-list").querySelectorAll(".quarantine-row").forEach((row) => {
+    row.addEventListener("click", () => toggleDrillDown(
+      row.dataset.caseId,
+      () => expandedQuarantineId, (v) => { expandedQuarantineId = v; },
+      renderQuarantineSection));
+  });
 }
 
 function renderExceptionFilters() {
@@ -833,7 +964,9 @@ function getFilteredExceptions() {
 
 function renderExceptionsTable() {
   if (!exceptionsAll.length) {
-    $("exceptions").innerHTML = `<p class="empty" style="padding:16px 18px;">No exceptions &mdash; every case auto-closed.</p>`;
+    $("exceptions").innerHTML = quarantineAll.length
+      ? `<p class="empty" style="padding:16px 18px;">No cases need reconciling &mdash; see the isolated records below though.</p>`
+      : `<p class="empty" style="padding:16px 18px;">No exceptions &mdash; every case auto-closed.</p>`;
     return;
   }
   ensureExceptionsSkeleton();
@@ -857,11 +990,14 @@ function renderExceptionsTable() {
       <thead><tr><th>Category</th><th>Order ID</th><th>Reason</th></tr></thead>
       <tbody>
         ${pageRows.map((d) => `
-          <tr>
-            <td><span class="exc-badge">${humanize(d.reason_category)}</span></td>
+          <tr class="exc-row ${expandedExceptionId === d.case_id ? "open" : ""}" data-case-id="${d.case_id}">
+            <td><span class="exc-caret">&#9656;</span><span class="exc-badge">${humanize(d.reason_category)}</span></td>
             <td class="mono">${d.case_id}</td>
             <td class="reason">${d.reason_detail}</td>
           </tr>
+          ${expandedExceptionId === d.case_id ? `
+            <tr class="exc-detail-row"><td colspan="3">${renderDrillDown(d.record_ids)}</td></tr>
+          ` : ""}
         `).join("")}
       </tbody>
     </table>
@@ -1006,6 +1142,8 @@ const RECORD_COLUMNS = {
   ],
   settlement_lines: [
     { key: "entity_id", label: "Settlement ID", mono: true },
+    { key: "order_id", label: "Order ID", mono: true, fmt: (v) => v ?? "—" },
+    { key: "payment_id", label: "Payment ID", mono: true, fmt: (v) => v ?? "— (ambiguous)" },
     { key: "amount", label: "Amount", fmt: money },
     { key: "type", label: "Type" },
     { key: "settled", label: "Settled", fmt: (v) => v ? "yes" : "no" },
