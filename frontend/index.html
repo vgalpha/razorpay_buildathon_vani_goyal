@@ -168,7 +168,7 @@
   </p>
   <div id="controls-row">
     <button id="btn-new-batch">new batch</button>
-    <button id="btn-benchmark" title="Generates the exact 207-case dataset cited in the README/architecture docs (seed 42) -- same numbers, every time.">reproduce the seed-42 benchmark</button>
+    <button id="btn-benchmark">load the verified demo run <span class="hint-dot" data-tip="Generates the exact same 207-case dataset the README and architecture docs cite as verified (100% accuracy, 0% false-auto-close) -- so you can confirm those numbers yourself instead of taking the docs' word for it.">?</span></button>
     <button id="btn-run" class="primary" disabled>run the loop</button>
   </div>
   <div id="status-line">no batch yet &mdash; generate one to begin</div>
@@ -269,7 +269,10 @@ function saveRecentRun(entry) {
 function renderRecentRuns() {
   const el = $("recent-runs");
   const runs = loadRecentRuns();
-  if (!runs.length) { el.innerHTML = ""; return; }
+  if (!runs.length) {
+    el.innerHTML = `<span class="recent-label">recent runs</span><span class="empty" style="font-size:12px;">none yet -- click "run the loop" and it'll show up here</span>`;
+    return;
+  }
   el.innerHTML = `<span class="recent-label">recent runs</span>` + runs.map(r => `
     <button class="chip recent-run-chip" data-batch-id="${r.batch_id}">seed ${r.seed} &middot; ${pct(r.accuracy)} &middot; ${r.cases} cases</button>
   `).join("");
