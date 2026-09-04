@@ -679,6 +679,91 @@ work, the deploy-verify loop's cold-starts) aren't framework-shaped anyway.
 deliberately deferred, per the user, to a single pass later rather than
 touched incrementally with each UI iteration.
 
+Two small polish fixes shipped without a STATUS.md entry at the time
+(caught up here): `.run-card` was missing `cursor: pointer`, and viewing a
+past run from History left "New run" highlighted in the nav instead of
+"History" — fixed by extracting `setActiveNavTab()` from `switchTab()` so
+the History "View results" handler could set nav state without going
+through the New-Run-flow logic. Also clarified the results-page "Speed"
+metric card, which read as an ambiguous "84,200/s" with no indication of
+what was actually measured — now leads with the real `wall_time_seconds`
+("Time taken") and shows the extrapolated rate as an explicitly-labeled
+`≈ N/s at this rate` secondary line.
+
+### Source-record drill-down + quarantine visibility (2026-09-04)
+
+Prompted by the user walking through the exceptions table from an
+accountant's point of view: "AI has flagged these things, what are my next
+steps, using the current UI am I able to do those easily, is there any
+friction?" Checked against the actual code rather than guessing, and found
+two real gaps, not just polish:
+
+- **Quarantined cases (structurally malformed input — missing order_id,
+  non-positive amount, unparseable date) were completely invisible.**
+  `initExceptions` only pulled `decision === "escalate"` rows; quarantine is
+  a third decision type that never entered the flagged table. A batch could
+  have malformed records and the UI would never show them existed.
+- **Every flagged row showed only a category badge and one sentence, never
+  the underlying records.** `Decision.record_ids` (linking a decision back
+  to the real payment/settlement/invoice rows) existed in the backend and
+  was already sent to the frontend in every run payload — just never used.
+  There was also no way to search by order ID in the data-preview tab, so
+  acting on "amount mismatch" or "missing settlement" meant paging through
+  raw tables hoping to spot the right ID.
+
+Fixed both. Flagged rows and quarantine rows are now clickable — clicking
+one expands an inline detail row (no modal, consistent with the rest of
+this UI) that resolves `record_ids` against the already-fetched dataset
+and shows the actual payment/settlement/invoice cards. Quarantined cases
+get their own section ("Isolated at ingest — not a transaction problem")
+with the same drill-down, explicitly framed as a data-quality issue for
+whoever owns the upstream export, not something to reconcile.
+
+Bug caught during in-browser verification, not code review: exceptions and
+quarantine rows initially shared one `expandedCaseId` variable. Expanding a
+quarantine row after an exceptions row left the exceptions section showing
+stale (still-expanded) DOM, since only the clicked section's own render
+function ran. Fixed by giving each section an independent expansion cursor
+(`expandedExceptionId` / `expandedQuarantineId`) — confirmed live that both
+can now be open at once with correct, distinct content.
+
+Separately, in the course of answering the user's question about where
+`order_id` comes from and how it relates to `payment_id`: the settlement
+preview table was missing `order_id` and `payment_id` columns even though
+`SettlementLine` always carried both (they were already in the CSV/JSON
+export, just never rendered on screen). Added both — `payment_id` shows
+"— (ambiguous)" when null, which is itself informative for the
+`multi_payment_ambiguous` case.
+
+Also moved the "Known limitation — disclosed on purpose" FX banner off the
+results page into the README, per the user's request. One nuance surfaced
+while doing this: there is no honest way to add an in-table signal marking
+*which* `amount_mismatch` rows are FX-caused, because by the time a payment
+reaches the reconciler its currency is already INR with no FX marker — the
+engine has no more information than the UI does. Tagging specific rows
+would require reading the generator's ground truth, which would defeat the
+point of the exercise. Said so plainly in the README rather than
+implying a distinction the UI can't actually back up.
+
+Deferred, explicitly queued for a follow-up: "what should I do next" hint
+text per fault category (16 categories) in the flagged-items table.
+Deliberately not bundled into this change to keep it reviewable — the
+drill-down is the fix that closes the loop for every category by giving
+real numbers to check; per-category guidance text is a separate, cheap
+addition once the user has seen this land.
+
+**Verified live in-browser** end to end: generated a batch, reconciled,
+confirmed the settlement preview shows order_id/payment_id, expanded an
+`amount_mismatch` row and confirmed the payment/settlement cards show the
+real conflicting amounts, expanded a quarantine row and confirmed it shows
+the actual malformed record (e.g. a negative amount), confirmed both stay
+independently expanded, confirmed collapse works, confirmed the same drill-
+down works when viewing a past run from History. No console errors. All 43
+backend tests still pass (no backend changes this round — frontend and
+README only). Committed as `a5f82bf` and deployed to production
+(`https://tieout-lemon.vercel.app`); `curl` against `/batches` and the
+served HTML confirmed the deploy went live.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
