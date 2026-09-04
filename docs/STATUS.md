@@ -441,11 +441,60 @@ page end-to-end:
 - Local API and static-file servers used for verification were stopped
   afterward; no process left running.
 
-Not yet re-verified: the live Vercel deployment (https://tieout-lemon.vercel.app)
-still serves the pre-redesign `frontend/index.html` until the next deploy —
-this redesign has only been verified locally so far. Redeploying is a
-judgment call the user may want to make explicitly (same "no commits without
-approval" constraint applies to what gets shipped).
+This redesign, and every frontend change since, has been deployed to and
+verified against the live production URL directly (not just locally) — see
+"Auto-ship workflow" below for why that's now the default, not a one-off.
+
+## Auto-ship workflow (standing rule, since 2026-09-04)
+
+The user gave a standing instruction: any code change to this repo gets
+committed (plain message, no AI attribution trailer — see the git-commit
+memory), pushed to `origin main`, and deployed to Vercel production
+automatically, with no confirmation step first. This supersedes the earlier
+"no commits without my approval" default *for this project specifically*.
+Every change described below in "Post-redesign UI iterations" was shipped
+this way — deployed, verified live in a real browser via the Claude-in-Chrome
+tool, then committed and pushed.
+
+## Post-redesign UI iterations
+
+Three follow-up fixes since the redesign pass above, each deployed and
+verified against https://tieout-lemon.vercel.app directly:
+
+1. **Exceptions list collapsed.** Each fault category in the exceptions panel
+   previously rendered every escalated case in full (~90+ cards, long
+   scroll). Now shows the first 3 with a "show all N" toggle per category —
+   no data removed, confirmed by expanding a real category (11/11
+   `books_duplicate_invoice_collision` cards) live.
+2. **Seed tooltip fixed.** The seed field's native `title` tooltip was
+   correct in markup but unreliable in practice (slow hover delay, easy to
+   miss) — replaced with a custom CSS tooltip on the `?` icon that appears
+   instantly. (This field was then removed entirely — see next item.)
+3. **Seed input removed; replaced with recent-runs history + a benchmark
+   button.** The user correctly flagged that asking someone to remember a
+   seed number to revisit a past run is bad UX, when batches are already
+   persisted in Postgres. Consulted advisor: agreed, killed the input, kept
+   the underlying `seed` param. Now: a **"reproduce the seed-42 benchmark"**
+   button (the one legitimate surviving use — matching the exact numbers
+   cited in README/docs), and a **recent-runs list** (localStorage, last 5
+   runs as clickable chips, reload any prior batch via the existing
+   `GET /batches/{id}` — deliberately no new backend endpoint). Verified live
+   with the scenario that actually matters: ran two different batches,
+   clicked back into the older one via its chip, confirmed the dashboard
+   correctly repopulated with that exact run's original data (matching
+   throughput number, not just matching case count).
+
+Also consulted advisor on whether the vanilla-HTML approach itself was
+creating friction for adding features like these — answer: no. Recent
+feature costs (15-60 lines each) show no structural friction; migrating to
+Next.js would mean rewriting `vercel.json`'s routing (currently one Python
+function serving both API and page) with real risk to the live URL under
+auto-ship, for a page whose actual friction points (one function doing real
+work, the deploy-verify loop's cold-starts) aren't framework-shaped anyway.
+
+`docs/VIDEO_SCRIPT.md` has not been updated to match these UI changes yet —
+deliberately deferred, per the user, to a single pass later rather than
+touched incrementally with each UI iteration.
 
 ## Remaining — needs Vani specifically
 
