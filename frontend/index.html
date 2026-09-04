@@ -39,7 +39,7 @@
   }
   #tagline { font-size: 17px; line-height: 1.65; color: var(--text); max-width: 580px; margin: 0; }
   #controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  label[for=seed] { font-size: 12px; color: var(--text-dim); }
+  #btn-benchmark { font-size: 12px; color: var(--text-dim); }
   .hint-dot {
     display: inline-block; width: 13px; height: 13px; line-height: 13px; border-radius: 50%;
     border: 1px solid var(--text-dimmer); color: var(--text-dimmer); font-size: 10px;
@@ -53,10 +53,6 @@
     padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--text);
     font-weight: 400; z-index: 20; box-shadow: 0 6px 20px rgba(0,0,0,0.5);
   }
-  input[type=number] {
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 8px 10px; width: 215px; font-family: var(--mono); font-size: 13px;
-  }
   button {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     border-radius: 6px; padding: 9px 16px; cursor: pointer; font-size: 13px;
@@ -67,12 +63,18 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   #status-line { font-family: var(--mono); font-size: 12px; color: var(--text-dim); min-height: 16px; }
 
+  #recent-runs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  #recent-runs .recent-label { font-size: 11px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.05em; }
+  .recent-run-chip { font-size: 12px; padding: 6px 10px; font-family: var(--mono); }
+
   body.has-run #control-panel {
     flex-direction: row; text-align: left; padding: 0 0 18px;
     border-bottom: 1px solid var(--border); margin-bottom: 28px;
+    flex-wrap: wrap;
   }
   body.has-run #tagline { display: none; }
   body.has-run #status-line { margin-left: auto; text-align: right; }
+  body.has-run #recent-runs { width: 100%; justify-content: flex-start; }
 
   /* ---------- results ---------- */
   #results { opacity: 0; transition: opacity 0.35s ease; }
@@ -165,12 +167,12 @@
     reason instead of guessing.
   </p>
   <div id="controls-row">
-    <label for="seed">seed <span class="hint-dot" data-tip="Optional. Picks which sample dataset gets generated -- same seed always produces the exact same 207 cases, so you can reproduce a specific run. Leave it blank for a fresh random one.">?</span></label>
-    <input type="number" id="seed" placeholder="leave blank for random">
     <button id="btn-new-batch">new batch</button>
+    <button id="btn-benchmark" title="Generates the exact 207-case dataset cited in the README/architecture docs (seed 42) -- same numbers, every time.">reproduce the seed-42 benchmark</button>
     <button id="btn-run" class="primary" disabled>run the loop</button>
   </div>
   <div id="status-line">no batch yet &mdash; generate one to begin</div>
+  <div id="recent-runs"></div>
 </div>
 
 <div id="results" hidden>
@@ -245,8 +247,33 @@ const _isLocal = !location.hostname || location.hostname === "localhost" || loca
 const API_BASE = _isLocal ? "http://localhost:8000" : "";
 
 let batchId = null;
+let currentSeed = null;
 let lastEval = null;
 let lastRun = null;
+
+const RECENT_RUNS_KEY = "tieout_recent_runs";
+
+function loadRecentRuns() {
+  try { return JSON.parse(localStorage.getItem(RECENT_RUNS_KEY)) || []; } catch (e) { return []; }
+}
+
+function saveRecentRun(entry) {
+  try {
+    let runs = loadRecentRuns().filter(r => r.batch_id !== entry.batch_id);
+    runs.unshift(entry);
+    localStorage.setItem(RECENT_RUNS_KEY, JSON.stringify(runs.slice(0, 5)));
+  } catch (e) { /* localStorage unavailable -- recent-runs is a convenience, not core */ }
+  renderRecentRuns();
+}
+
+function renderRecentRuns() {
+  const el = $("recent-runs");
+  const runs = loadRecentRuns();
+  if (!runs.length) { el.innerHTML = ""; return; }
+  el.innerHTML = `<span class="recent-label">recent runs</span>` + runs.map(r => `
+    <button class="chip recent-run-chip" data-batch-id="${r.batch_id}">seed ${r.seed} &middot; ${pct(r.accuracy)} &middot; ${r.cases} cases</button>
+  `).join("");
+}
 
 const $ = (id) => document.getElementById(id);
 const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
@@ -277,15 +304,16 @@ async function api(path, opts) {
   return res.json();
 }
 
-$("btn-new-batch").addEventListener("click", async () => {
+async function createBatch(seed) {
   setStatus("generating batch...");
   $("btn-new-batch").disabled = true;
+  $("btn-benchmark").disabled = true;
   try {
-    const seedVal = $("seed").value ? parseInt($("seed").value, 10) : null;
     const body = { order_mode: "synthetic" };
-    if (seedVal !== null) body.seed = seedVal;
+    if (seed !== null) body.seed = seed;
     const data = await api("/batches", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) });
     batchId = data.batch_id;
+    currentSeed = data.seed;
     setStatus(`batch ${batchId} -- seed ${data.seed} -- ${data.cases} cases (${data.payments} payments, ${data.settlement_lines} settlement lines, ${data.invoices} invoices)`);
     $("btn-run").disabled = false;
     resetPanels();
@@ -293,8 +321,12 @@ $("btn-new-batch").addEventListener("click", async () => {
     setStatus(`error generating batch: ${e.message}`);
   } finally {
     $("btn-new-batch").disabled = false;
+    $("btn-benchmark").disabled = false;
   }
-});
+}
+
+$("btn-new-batch").addEventListener("click", () => createBatch(null));
+$("btn-benchmark").addEventListener("click", () => createBatch(42));
 
 $("btn-run").addEventListener("click", async () => {
   if (!batchId) return;
@@ -304,12 +336,31 @@ $("btn-run").addEventListener("click", async () => {
     const data = await api(`/batches/${batchId}/run`, { method: "POST" });
     render(data);
     setStatus(`batch ${batchId} -- loop closed -- ${data.eval.total_cases} cases in ${(data.wall_time_seconds*1000).toFixed(2)}ms`);
+    saveRecentRun({ batch_id: batchId, seed: currentSeed, created_at: Date.now(), accuracy: data.eval.overall_accuracy, cases: data.eval.total_cases });
   } catch (e) {
     setStatus(`error running batch: ${e.message}`);
   } finally {
     $("btn-run").disabled = false;
   }
 });
+
+$("recent-runs").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-batch-id]");
+  if (!btn) return;
+  const id = btn.dataset.batchId;
+  setStatus(`loading batch ${id} from history...`);
+  try {
+    const data = await api(`/batches/${id}`);
+    batchId = id;
+    render(data);
+    setStatus(`batch ${id} -- loop closed -- ${data.eval.total_cases} cases (reloaded from history)`);
+    $("btn-run").disabled = false;
+  } catch (e2) {
+    setStatus(`error loading batch ${id}: ${e2.message}`);
+  }
+});
+
+renderRecentRuns();
 
 function resetPanels() {
   setHasRun(false);
