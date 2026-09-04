@@ -59,6 +59,28 @@ class TestBatchPersistence(unittest.TestCase):
     engine = db.make_engine(self.url)
     self.assertIsNone(db.fetch_batch(engine, "does-not-exist"))
 
+  def test_list_batches_only_includes_completed_runs(self):
+    dataset = generate_dataset(seed=1)
+    engine = db.make_engine(self.url)
+    db.insert_batch(engine, "not-run-yet", 1, "synthetic", serialize.dataset_to_dict(dataset))
+    db.insert_batch(engine, "completed", 2, "synthetic", serialize.dataset_to_dict(dataset))
+    run = reconcile(dataset.payments, dataset.settlement_lines, dataset.invoices)
+    ev = evaluate(run, dataset.ground_truth)
+    db.set_run_result(engine, "completed", serialize.run_to_dict(run, ev))
+
+    listed = db.list_batches(engine)
+    self.assertEqual([b["id"] for b in listed], ["completed"])
+    self.assertEqual(listed[0]["cases"], len(dataset.ground_truth))
+    self.assertEqual(listed[0]["accuracy"], ev.overall_accuracy)
+    self.assertTrue(listed[0]["created_at"].endswith("+00:00"))
+
+  def test_ensure_summary_columns_is_idempotent_on_existing_table(self):
+    engine = db.make_engine(self.url)
+    db.make_engine(self.url)  # second call against the same already-migrated db
+    dataset = generate_dataset(seed=1)
+    db.insert_batch(engine, "b3", 1, "synthetic", serialize.dataset_to_dict(dataset))
+    self.assertIsNotNone(db.fetch_batch(engine, "b3"))
+
 
 if __name__ == "__main__":
   unittest.main()

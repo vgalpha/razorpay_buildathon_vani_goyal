@@ -9,108 +9,164 @@
     --bg: #0b0d10;
     --panel: #14171c;
     --panel-2: #191d23;
+    --panel-3: #1e232b;
     --border: #262b33;
+    --border-soft: #1d2128;
     --text: #e6e8eb;
     --text-dim: #8b93a1;
     --text-dimmer: #5f6673;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     --accent: #5b8dee;
+    --accent-dim: #3a5da3;
     --good: #3ecf8e;
     --bad: #ef5b5b;
     --warn: #f2a93b;
+    --radius: 14px;
   }
   * { box-sizing: border-box; }
+  html { scrollbar-color: var(--border) var(--bg); }
   body {
     margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
-    padding: 28px 24px 60px; max-width: 1080px; margin-inline: auto;
+    -webkit-font-smoothing: antialiased;
   }
+  main { max-width: 1080px; margin-inline: auto; padding: 32px 24px 70px; }
+  button { font-family: var(--sans); }
+  a { color: var(--accent); }
 
-  header {
-    padding-bottom: 14px;
+  /* ---------- navbar ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: rgba(11, 13, 16, 0.85); backdrop-filter: blur(10px);
   }
-  h1 { font-size: 16px; margin: 0; letter-spacing: 0.02em; font-weight: 600; }
-  h1 span { color: var(--text-dim); font-weight: 400; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #7c5bee);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+  }
+  .brand-name { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+  .brand-sub { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+  .nav-tabs { display: flex; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
+  .nav-tab {
+    background: transparent; border: none; color: var(--text-dim);
+    padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-tab:hover { color: var(--text); }
+  .nav-tab.active { background: var(--panel-3); color: var(--text); }
+  .nav-tab svg { width: 14px; height: 14px; opacity: 0.8; }
 
-  /* ---------- control panel: hero pre-run, slim bar post-run ---------- */
-  #control-panel {
-    display: flex; flex-direction: column; align-items: center; text-align: center;
-    gap: 22px; padding: 56px 16px 48px; transition: padding 0.2s ease;
-  }
-  #tagline { font-size: 17px; line-height: 1.65; color: var(--text); max-width: 580px; margin: 0; }
-  #controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  #btn-benchmark { font-size: 12px; color: var(--text-dim); }
-  .hint-dot {
-    display: inline-block; width: 13px; height: 13px; line-height: 13px; border-radius: 50%;
-    border: 1px solid var(--text-dimmer); color: var(--text-dimmer); font-size: 10px;
-    text-align: center; margin-left: 2px; position: relative; cursor: help;
-  }
-  .hint-dot:hover::after {
-    content: attr(data-tip);
-    position: absolute; left: 50%; top: 22px; transform: translateX(-50%);
-    width: 260px; white-space: normal; text-align: left;
-    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
-    padding: 10px 12px; font-size: 12px; line-height: 1.5; color: var(--text);
-    font-weight: 400; z-index: 20; box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-  }
-  button {
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ---------- buttons ---------- */
+  button.btn {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    border-radius: 6px; padding: 9px 16px; cursor: pointer; font-size: 13px;
-    transition: border-color 0.15s, background 0.15s;
+    border-radius: 8px; padding: 10px 18px; cursor: pointer; font-size: 13.5px; font-weight: 500;
+    transition: border-color 0.15s, background 0.15s, transform 0.1s;
   }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  #status-line { font-family: var(--mono); font-size: 12px; color: var(--text-dim); min-height: 16px; }
+  button.btn:hover:not(:disabled) { border-color: var(--accent); background: var(--panel-3); }
+  button.btn:active:not(:disabled) { transform: scale(0.98); }
+  button.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.btn.primary:hover:not(:disabled) { background: #4a7be0; border-color: #4a7be0; }
+  button.btn.ghost { background: transparent; }
+  button.btn.small { padding: 7px 13px; font-size: 12.5px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .icon { width: 15px; height: 15px; vertical-align: -3px; margin-right: 5px; }
 
-  #recent-runs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
-  #recent-runs .recent-label { font-size: 11px; color: var(--text-dimmer); text-transform: uppercase; letter-spacing: 0.05em; }
-  .recent-run-chip { font-size: 12px; padding: 6px 10px; font-family: var(--mono); }
+  /* Stage sections below each set their own `display` (flex/block), which
+     otherwise outranks the browser's default [hidden]{display:none} since
+     an ID selector beats a bare attribute selector -- so `hidden` on these
+     three needs an explicit, higher-priority override or two stages can
+     render at once. */
+  #stage-hero[hidden], #stage-ready[hidden], #stage-results[hidden] { display: none !important; }
 
-  body.has-run #control-panel {
-    flex-direction: row; text-align: left; padding: 0 0 18px;
-    border-bottom: 1px solid var(--border); margin-bottom: 28px;
-    flex-wrap: wrap;
+  /* ---------- hero (no batch yet) ---------- */
+  #stage-hero {
+    text-align: center; padding: 70px 16px 60px; display: flex;
+    flex-direction: column; align-items: center; gap: 24px;
   }
-  body.has-run #tagline { display: none; }
-  body.has-run #status-line { margin-left: auto; text-align: right; }
-  body.has-run #recent-runs { width: 100%; justify-content: flex-start; }
+  #stage-hero h1 { font-size: 26px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  #stage-hero p { font-size: 16px; line-height: 1.65; color: var(--text-dim); max-width: 560px; margin: 0; }
 
-  /* ---------- results ---------- */
+  /* ---------- data-ready card ---------- */
+  #stage-ready {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 18px; padding: 48px 16px; margin: 0 auto; max-width: 520px;
+  }
+  .ready-icon {
+    width: 52px; height: 52px; border-radius: 50%; background: rgba(62, 207, 142, 0.12);
+    display: flex; align-items: center; justify-content: center; color: var(--good);
+  }
+  #stage-ready h2 { font-size: 19px; margin: 0; font-weight: 600; }
+  #stage-ready p { font-size: 14px; color: var(--text-dim); margin: 0; line-height: 1.5; }
+
+  /* ---------- results top bar ---------- */
+  #results-topbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+    padding-bottom: 16px; margin-bottom: 26px; border-bottom: 1px solid var(--border);
+  }
+  #results-topbar .status-text { font-size: 13.5px; color: var(--text-dim); }
+  #results-topbar .status-text strong { color: var(--text); font-weight: 600; }
+
+  /* ---------- results zones ---------- */
   #results { opacity: 0; transition: opacity 0.35s ease; }
   #results.show { opacity: 1; }
 
   .zone { margin-bottom: 34px; }
   .zone:last-child { margin-bottom: 0; }
   .zone-title {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-dimmer); margin: 0 0 12px; padding-left: 2px;
+    font-size: 12px; letter-spacing: 0.02em;
+    color: var(--text-dimmer); margin: 0 0 12px; padding-left: 2px; font-weight: 600;
   }
 
-  /* headline metric cards -- visually dominant */
   .zone-headline {
     background: linear-gradient(180deg, rgba(91,141,238,0.08), rgba(91,141,238,0));
-    border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
   }
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
-  .card .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-  .card .value { font-family: var(--mono); font-size: 32px; margin-top: 8px; font-weight: 600; }
+  .card .label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .card .value { font-size: 30px; margin-top: 8px; font-weight: 650; letter-spacing: -0.01em; }
   .card.safety .value.zero { color: var(--good); }
   .card.safety .value.nonzero { color: var(--bad); }
 
-  /* secondary / supporting detail -- visually quieter */
+  .plain-summary {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; margin-bottom: 12px;
+  }
+  .plain-summary.ok { border-color: rgba(62,207,142,0.35); }
+  .plain-summary.warn { border-color: rgba(242,169,59,0.4); }
+  .plain-summary svg { flex-shrink: 0; }
+
+  .tech-toggle {
+    background: none; border: none; color: var(--text-dim); font-size: 12.5px;
+    cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 5px;
+  }
+  .tech-toggle:hover { color: var(--text); }
+  .tech-toggle svg { width: 12px; height: 12px; transition: transform 0.15s; }
+  .tech-toggle.open svg { transform: rotate(90deg); }
+  #technical-detail { display: none; margin-top: 14px; }
+  #technical-detail.open { display: block; }
+
   section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
-  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0 0 12px; }
+  section h2 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin: 0 0 12px; }
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
   .detail-grid:last-child { margin-bottom: 0; }
   section.compact { padding: 13px 15px; background: var(--bg); }
-  section.compact h2 { font-size: 11px; margin-bottom: 9px; color: var(--text-dimmer); }
+  section.compact h2 { font-size: 11.5px; margin-bottom: 9px; color: var(--text-dimmer); }
   section.compact table { font-size: 12px; }
 
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border-soft); }
+  th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
   td.mono, th.mono { font-family: var(--mono); }
   .ok { color: var(--good); }
   .fail { color: var(--bad); }
@@ -127,7 +183,6 @@
   .trace-line.reveal { opacity: 0; transform: translateY(4px); transition: opacity 0.28s ease, transform 0.28s ease; }
   .trace-line.reveal.show { opacity: 1; transform: translateY(0); }
 
-  /* "what needs a human" zone */
   .limitations { border: 1px solid var(--warn); background: rgba(242, 169, 59, 0.06); margin-top: 14px; }
   .limitations h2 { color: var(--warn); }
   .exception-card {
@@ -144,98 +199,219 @@
   .qa-q { align-self: flex-end; background: var(--accent); color: #fff; padding: 8px 12px; border-radius: 10px 10px 2px 10px; max-width: 80%; font-size: 13px; }
   .qa-a { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px 10px 10px 2px; max-width: 80%; font-size: 13px; line-height: 1.5; }
   #qa-input-row { display: flex; gap: 8px; }
-  #qa-input { flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 12px; font-family: var(--sans); }
+  #qa-input { flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-family: var(--sans); font-size: 13.5px; }
+  #qa-input:focus { outline: none; border-color: var(--accent); }
   .empty { color: var(--text-dim); font-size: 13px; font-style: italic; }
+
+  /* ---------- history tab ---------- */
+  #history-list { display: flex; flex-direction: column; gap: 10px; }
+  .run-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; flex-wrap: wrap; transition: border-color 0.15s;
+  }
+  .run-card:hover { border-color: var(--accent-dim); }
+  .run-card .when { font-size: 14px; font-weight: 600; }
+  .run-card .meta { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+  .run-badge { font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 20px; white-space: nowrap; }
+  .run-badge.good { background: rgba(62,207,142,0.12); color: var(--good); }
+  .run-badge.bad { background: rgba(239,91,91,0.12); color: var(--bad); }
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--text-dim);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .empty-state svg { color: var(--text-dimmer); margin-bottom: 4px; }
+  .empty-state p { margin: 0; font-size: 14px; }
+  .empty-state .hint { font-size: 12.5px; color: var(--text-dimmer); }
+
+  /* ---------- data preview modal ---------- */
+  #data-modal {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  #data-modal[hidden] { display: none; }
+  .modal-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    width: 100%; max-width: 760px; max-height: 84vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 15px; margin: 0; font-weight: 600; }
+  .modal-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--text); }
+  .modal-tabs { display: flex; gap: 6px; padding: 12px 20px 0; }
+  .modal-tab {
+    background: none; border: none; color: var(--text-dim); font-size: 13px; font-weight: 500;
+    padding: 8px 4px; cursor: pointer; border-bottom: 2px solid transparent;
+  }
+  .modal-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .modal-body { padding: 14px 20px; overflow: auto; flex: 1; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+  .modal-note { font-size: 12px; color: var(--text-dimmer); margin: 10px 0 0; }
 
   @media (max-width: 720px) {
     .detail-grid { grid-template-columns: 1fr; }
-    body.has-run #control-panel { flex-direction: column; text-align: center; }
-    body.has-run #status-line { margin-left: 0; text-align: center; }
+    nav { padding: 12px 16px; }
+    .brand-sub { display: none; }
+    #results-topbar { flex-direction: column; align-items: flex-start; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>TieOut <span>/ payments &middot; settlements &middot; books</span></h1>
-</header>
-
-<div id="control-panel">
-  <p id="tagline">
-    TieOut reconciles Razorpay payments, settlements, and books in a single pass &mdash;
-    auto-closing what it's certain about, and escalating everything else with a plain-English
-    reason instead of guessing.
-  </p>
-  <div id="controls-row">
-    <button id="btn-new-batch">new batch</button>
-    <button id="btn-benchmark">load the verified demo run <span class="hint-dot" data-tip="Generates the exact same 207-case dataset the README and architecture docs cite as verified (100% accuracy, 0% false-auto-close) -- so you can confirm those numbers yourself instead of taking the docs' word for it.">?</span></button>
-    <button id="btn-run" class="primary" disabled>run the loop</button>
+<nav>
+  <div class="brand">
+    <div class="brand-mark">T</div>
+    <span class="brand-name">TieOut</span>
+    <span class="brand-sub">payments &middot; settlements &middot; books</span>
   </div>
-  <div id="status-line">no batch yet &mdash; generate one to begin</div>
-  <div id="recent-runs"></div>
-</div>
-
-<div id="results" hidden>
-
-  <div class="zone zone-headline">
-    <div class="cards" id="metric-cards"></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="new">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New run
+    </button>
+    <button class="nav-tab" data-tab="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      History
+    </button>
   </div>
+</nav>
 
-  <div class="zone">
-    <div class="zone-title">How it decided</div>
-    <div class="detail-grid">
-      <section class="compact">
-        <h2>Invariants</h2>
-        <div id="invariants"></div>
-      </section>
-      <section class="compact">
-        <h2>Engine trace &mdash; per pass</h2>
-        <div id="trace"></div>
-      </section>
-    </div>
-    <div class="detail-grid">
-      <section class="compact">
-        <h2>Per-fault-class accuracy</h2>
-        <table id="fault-class-table"><thead><tr><th>fault type</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
-      </section>
-      <section class="compact">
-        <h2>Per-rule scorecard</h2>
-        <table id="rule-table"><thead><tr><th>rule</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
-      </section>
-    </div>
-  </div>
+<main>
 
-  <div class="zone">
-    <div class="zone-title">What needs a human</div>
-    <section>
-      <h2>Exceptions &mdash; escalated, with the actual reason</h2>
-      <div id="exceptions"></div>
-    </section>
-    <section class="limitations">
-      <h2>Known limitation &mdash; disclosed on purpose</h2>
-      <p style="font-size:13px; line-height:1.6; margin:0;">
-        <strong>International / cross-border payments settled in INR after FX conversion are not modeled.</strong>
-        The engine has no currency-conversion logic, so it correctly refuses to auto-close these (it never mis-closes
-        a case it doesn't understand) -- but it can only label the discrepancy a generic <code>amount_mismatch</code>,
-        not identify the true FX cause. This is a safe-failure gap: it over-escalates rather than guessing, and we're
-        stating it here rather than hiding it.
+  <div id="tab-new" class="tab-panel active">
+
+    <div id="stage-hero">
+      <h1>Check your payments, settlements, and books &mdash; in one click</h1>
+      <p>
+        TieOut compares your payment, settlement, and bookkeeping records against each other.
+        It automatically clears the ones it's confident about, and explains &mdash; in plain
+        English &mdash; exactly why it flagged the rest for a human to look at.
       </p>
-    </section>
-  </div>
+      <button id="btn-generate" class="btn primary">Generate sample data</button>
+    </div>
 
-  <div class="zone">
-    <div class="zone-title">Ask it</div>
-    <section>
-      <h2>Ask the ledger</h2>
-      <div class="chips" id="qa-chips"></div>
-      <div id="qa-log"></div>
-      <div id="qa-input-row">
-        <input id="qa-input" type="text" placeholder="ask about this run, e.g. why was order_XXXX escalated">
-        <button id="qa-send">ask</button>
+    <div id="stage-ready" hidden>
+      <div class="ready-icon">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
-    </section>
+      <h2 id="ready-headline">Data is ready</h2>
+      <p id="ready-subtext">Take a look at what was generated, or go straight to reconciling it.</p>
+      <div class="btn-row">
+        <button id="btn-preview" class="btn">Preview &amp; download data</button>
+        <button id="btn-run" class="btn primary">Reconcile now</button>
+      </div>
+    </div>
+
+    <div id="stage-results" hidden>
+      <div id="results-topbar">
+        <div class="status-text" id="results-status"></div>
+        <div class="btn-row">
+          <button id="btn-preview-2" class="btn small">View data</button>
+          <button id="btn-start-over" class="btn small">Start a new run</button>
+        </div>
+      </div>
+
+      <div id="results">
+
+        <div class="zone zone-headline">
+          <div class="cards" id="metric-cards"></div>
+        </div>
+
+        <div class="zone">
+          <div id="plain-summary"></div>
+          <button id="tech-toggle" class="tech-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            Show technical details
+          </button>
+          <div id="technical-detail">
+            <div class="detail-grid" style="margin-top:14px;">
+              <section class="compact">
+                <h2>Consistency checks</h2>
+                <div id="invariants"></div>
+              </section>
+              <section class="compact">
+                <h2>Engine trace &mdash; per pass</h2>
+                <div id="trace"></div>
+              </section>
+            </div>
+            <div class="detail-grid">
+              <section class="compact">
+                <h2>Per-fault-class accuracy</h2>
+                <table id="fault-class-table"><thead><tr><th>fault type</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
+              </section>
+              <section class="compact">
+                <h2>Per-rule scorecard</h2>
+                <table id="rule-table"><thead><tr><th>rule</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div class="zone">
+          <div class="zone-title">What needs a human</div>
+          <section>
+            <h2>Flagged items &mdash; with the actual reason</h2>
+            <div id="exceptions"></div>
+          </section>
+          <section class="limitations">
+            <h2>Known limitation &mdash; disclosed on purpose</h2>
+            <p style="font-size:13px; line-height:1.6; margin:0;">
+              <strong>International / cross-border payments settled in INR after FX conversion are not modeled.</strong>
+              TieOut has no currency-conversion logic, so it correctly refuses to auto-close these (it never mis-closes
+              a case it doesn't understand) &mdash; but it can only label the discrepancy a generic <code>amount_mismatch</code>,
+              not identify the true FX cause. This is a safe-failure gap: it over-flags rather than guessing, and we're
+              stating it here rather than hiding it.
+            </p>
+          </section>
+        </div>
+
+        <div class="zone">
+          <div class="zone-title">Ask a question</div>
+          <section>
+            <h2>Ask about this run</h2>
+            <div class="chips" id="qa-chips"></div>
+            <div id="qa-log"></div>
+            <div id="qa-input-row">
+              <input id="qa-input" type="text" placeholder="ask anything about this run, e.g. what's the biggest exception?">
+              <button id="qa-send" class="btn">Ask</button>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
+  <div id="tab-history" class="tab-panel">
+    <div id="history-body">
+      <div class="empty-state"><p>Loading&hellip;</p></div>
+    </div>
+  </div>
+
+</main>
+
+<div id="data-modal" hidden>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 id="modal-title">Data preview</h2>
+      <button class="modal-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-record="payments">Payments</button>
+      <button class="modal-tab" data-record="settlement_lines">Settlements</button>
+      <button class="modal-tab" data-record="invoices">Books / invoices</button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-table-wrap"></div>
+      <p class="modal-note" id="modal-note"></p>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-download-csv" class="btn small">Download payments (CSV)</button>
+      <button id="btn-download-json" class="btn small">Download full dataset (JSON)</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -246,57 +422,10 @@
 const _isLocal = !location.hostname || location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const API_BASE = _isLocal ? "http://localhost:8000" : "";
 
-let batchId = null;
-let currentSeed = null;
-let lastEval = null;
-let lastRun = null;
-
-const RECENT_RUNS_KEY = "tieout_recent_runs";
-
-function loadRecentRuns() {
-  try { return JSON.parse(localStorage.getItem(RECENT_RUNS_KEY)) || []; } catch (e) { return []; }
-}
-
-function saveRecentRun(entry) {
-  try {
-    let runs = loadRecentRuns().filter(r => r.batch_id !== entry.batch_id);
-    runs.unshift(entry);
-    localStorage.setItem(RECENT_RUNS_KEY, JSON.stringify(runs.slice(0, 5)));
-  } catch (e) { /* localStorage unavailable -- recent-runs is a convenience, not core */ }
-  renderRecentRuns();
-}
-
-function renderRecentRuns() {
-  const el = $("recent-runs");
-  const runs = loadRecentRuns();
-  if (!runs.length) {
-    el.innerHTML = `<span class="recent-label">recent runs</span><span class="empty" style="font-size:12px;">none yet -- click "run the loop" and it'll show up here</span>`;
-    return;
-  }
-  el.innerHTML = `<span class="recent-label">recent runs</span>` + runs.map(r => `
-    <button class="chip recent-run-chip" data-batch-id="${r.batch_id}">seed ${r.seed} &middot; ${pct(r.accuracy)} &middot; ${r.cases} cases</button>
-  `).join("");
-}
-
 const $ = (id) => document.getElementById(id);
 const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 const pct = (x) => `${(x * 100).toFixed(x < 1 ? 2 : 1)}%`;
-
-function setStatus(text) { $("status-line").textContent = text; }
-
-function setHasRun(v) {
-  document.body.classList.toggle("has-run", v);
-  const results = $("results");
-  if (v) {
-    results.hidden = false;
-    results.classList.remove("show");
-    void results.offsetWidth; // force reflow so the transition fires
-    results.classList.add("show");
-  } else {
-    results.hidden = true;
-    results.classList.remove("show");
-  }
-}
+const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 async function api(path, opts) {
   const res = await fetch(API_BASE + path, opts);
@@ -307,95 +436,140 @@ async function api(path, opts) {
   return res.json();
 }
 
-async function createBatch(seed) {
-  setStatus("generating batch...");
-  $("btn-new-batch").disabled = true;
-  $("btn-benchmark").disabled = true;
+// ---------------------------------------------------------------- state --
+let batchId = null;
+let datasetSummary = null;   // {payments, settlement_lines, invoices, cases}
+let datasetCache = null;     // fetched lazily when the preview modal opens
+let lastRun = null;
+
+// -------------------------------------------------------------- nav tabs --
+document.querySelectorAll(".nav-tab").forEach((tab) => {
+  tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+});
+
+function switchTab(name) {
+  document.querySelectorAll(".nav-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
+  if (name === "history") loadHistory();
+}
+
+// -------------------------------------------------------------- stages --
+function showStage(name) {
+  $("stage-hero").hidden = name !== "hero";
+  $("stage-ready").hidden = name !== "ready";
+  $("stage-results").hidden = name !== "results";
+}
+
+// ---------------------------------------------------------- generate data --
+$("btn-generate").addEventListener("click", generateBatch);
+
+async function generateBatch() {
+  $("btn-generate").disabled = true;
+  $("btn-generate").textContent = "Generating…";
   try {
-    const body = { order_mode: "synthetic" };
-    if (seed !== null) body.seed = seed;
-    const data = await api("/batches", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) });
+    const data = await api("/batches", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order_mode: "synthetic" }),
+    });
     batchId = data.batch_id;
-    currentSeed = data.seed;
-    setStatus(`batch ${batchId} -- seed ${data.seed} -- ${data.cases} cases (${data.payments} payments, ${data.settlement_lines} settlement lines, ${data.invoices} invoices)`);
-    $("btn-run").disabled = false;
-    resetPanels();
+    datasetSummary = { payments: data.payments, settlement_lines: data.settlement_lines, invoices: data.invoices, cases: data.cases };
+    datasetCache = null;
+    lastRun = null;
+    $("ready-headline").textContent = `${data.cases.toLocaleString()} transactions generated`;
+    $("ready-subtext").textContent = `${data.payments.toLocaleString()} payments, ${data.settlement_lines.toLocaleString()} settlement lines, and ${data.invoices.toLocaleString()} invoice records are ready to check.`;
+    showStage("ready");
   } catch (e) {
-    setStatus(`error generating batch: ${e.message}`);
+    alert(`Couldn't generate data: ${e.message}`);
   } finally {
-    $("btn-new-batch").disabled = false;
-    $("btn-benchmark").disabled = false;
+    $("btn-generate").disabled = false;
+    $("btn-generate").textContent = "Generate sample data";
   }
 }
 
-$("btn-new-batch").addEventListener("click", () => createBatch(null));
-$("btn-benchmark").addEventListener("click", () => createBatch(42));
+$("btn-start-over").addEventListener("click", () => {
+  batchId = null; datasetSummary = null; datasetCache = null; lastRun = null;
+  resetResultPanels();
+  showStage("hero");
+});
 
-$("btn-run").addEventListener("click", async () => {
+// -------------------------------------------------------------- reconcile --
+$("btn-run").addEventListener("click", runReconciliation);
+
+async function runReconciliation() {
   if (!batchId) return;
-  setStatus(`running reconciliation on ${batchId}...`);
   $("btn-run").disabled = true;
+  $("btn-run").textContent = "Reconciling…";
   try {
     const data = await api(`/batches/${batchId}/run`, { method: "POST" });
-    render(data);
-    setStatus(`batch ${batchId} -- loop closed -- ${data.eval.total_cases} cases in ${(data.wall_time_seconds*1000).toFixed(2)}ms`);
-    saveRecentRun({ batch_id: batchId, seed: currentSeed, created_at: Date.now(), accuracy: data.eval.overall_accuracy, cases: data.eval.total_cases });
+    lastRun = data;
+    render(data, { justRan: true });
+    showStage("results");
   } catch (e) {
-    setStatus(`error running batch: ${e.message}`);
+    alert(`Couldn't reconcile this batch: ${e.message}`);
   } finally {
     $("btn-run").disabled = false;
+    $("btn-run").textContent = "Reconcile now";
   }
-});
+}
 
-$("recent-runs").addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-batch-id]");
-  if (!btn) return;
-  const id = btn.dataset.batchId;
-  setStatus(`loading batch ${id} from history...`);
-  try {
-    const data = await api(`/batches/${id}`);
-    batchId = id;
-    render(data);
-    setStatus(`batch ${id} -- loop closed -- ${data.eval.total_cases} cases (reloaded from history)`);
-    $("btn-run").disabled = false;
-  } catch (e2) {
-    setStatus(`error loading batch ${id}: ${e2.message}`);
-  }
-});
-
-renderRecentRuns();
-
-function resetPanels() {
-  setHasRun(false);
+function resetResultPanels() {
+  $("results").classList.remove("show");
   $("metric-cards").innerHTML = "";
+  $("plain-summary").innerHTML = "";
   $("invariants").innerHTML = "";
   $("trace").innerHTML = "";
   $("fault-class-table").querySelector("tbody").innerHTML = "";
   $("rule-table").querySelector("tbody").innerHTML = "";
   $("exceptions").innerHTML = "";
   $("qa-log").innerHTML = "";
+  $("technical-detail").classList.remove("open");
+  $("tech-toggle").classList.remove("open");
+  $("tech-toggle").lastChild.textContent = "Show technical details";
 }
 
-function render(data) {
-  lastEval = data.eval;
-  lastRun = data;
+function render(data, { justRan = false, viewingHistorical = false, createdAt = null } = {}) {
+  resetResultPanels();
+  const statusText = viewingHistorical
+    ? `Viewing a past run &middot; <strong>${when(createdAt)}</strong> &middot; ${data.eval.total_cases.toLocaleString()} transactions`
+    : `<strong>Just reconciled</strong> &middot; ${data.eval.total_cases.toLocaleString()} transactions in ${(data.wall_time_seconds * 1000).toFixed(1)}ms`;
+  $("results-status").innerHTML = statusText;
   renderCards(data.eval);
+  renderPlainSummary(data.eval, data.invariants);
   renderInvariants(data.invariants);
   renderTable("fault-class-table", data.eval.per_fault_class);
   renderTable("rule-table", data.eval.per_rule);
   renderExceptions(data.decisions);
-  setHasRun(true);
   renderTrace(data.pass_timings_ms, data.pass_hit_counts);
+  void $("results").offsetWidth;
+  $("results").classList.add("show");
 }
 
 function renderCards(ev) {
   const zero = ev.false_auto_close_rate === 0;
   $("metric-cards").innerHTML = `
-    <div class="card"><div class="label">overall accuracy</div><div class="value">${pct(ev.overall_accuracy)}</div></div>
-    <div class="card safety"><div class="label">false auto-close rate (safety)</div><div class="value ${zero ? "zero" : "nonzero"}">${pct(ev.false_auto_close_rate)}</div></div>
-    <div class="card"><div class="label">throughput</div><div class="value">${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s</div></div>
-    <div class="card"><div class="label">records processed</div><div class="value">${ev.total_cases}</div></div>
+    <div class="card"><div class="label">Accuracy</div><div class="value">${pct(ev.overall_accuracy)}</div></div>
+    <div class="card safety"><div class="label">Incorrect approvals</div><div class="value ${zero ? "zero" : "nonzero"}">${pct(ev.false_auto_close_rate)}</div></div>
+    <div class="card"><div class="label">Speed</div><div class="value">${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s</div></div>
+    <div class="card"><div class="label">Transactions checked</div><div class="value">${ev.total_cases.toLocaleString()}</div></div>
   `;
+}
+
+function renderPlainSummary(ev, invariants) {
+  const allHold = Object.values(invariants).every(Boolean);
+  const clean = ev.false_auto_close_rate === 0 && allHold;
+  const el = $("plain-summary");
+  el.className = `plain-summary ${clean ? "ok" : "warn"}`;
+  if (clean) {
+    el.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="color:var(--good)"><path d="M20 6 9 17l-5-5"/></svg>
+      <span>Everything checked out &mdash; TieOut made no incorrect calls on this batch, and correctly asked for help wherever it wasn't sure.</span>
+    `;
+  } else {
+    el.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="color:var(--warn)"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
+      <span>TieOut flagged some inconsistencies worth a closer look &mdash; see the details below.</span>
+    `;
+  }
 }
 
 function renderInvariants(invariants) {
@@ -412,9 +586,6 @@ function renderTrace(timings, hits) {
   el.innerHTML = names.map((name) => `
     <div class="trace-line reveal"><span class="name">${name}</span><span>${(hits[name] || 0)} decided &middot; ${timings[name].toFixed(3)}ms</span></div>
   `).join("");
-  // Progressive reveal: each pass line fades in in sequence rather than
-  // popping in all at once -- this mirrors the engine actually running its
-  // passes in order.
   el.querySelectorAll(".trace-line").forEach((line, i) => {
     setTimeout(() => line.classList.add("show"), 90 + i * 140);
   });
@@ -446,7 +617,7 @@ function renderExceptions(decisions) {
           <div class="detail">${d.reason_detail}</div>
         </div>
       `).join("")}
-      ${items.length > EXCEPTIONS_VISIBLE ? `<button class="chip" data-exc-toggle="1" data-count="${items.length}">show all ${items.length}</button>` : ""}
+      ${items.length > EXCEPTIONS_VISIBLE ? `<button class="chip btn small" data-exc-toggle="1" data-count="${items.length}">show all ${items.length}</button>` : ""}
     </div>
   `).join("");
 }
@@ -462,6 +633,13 @@ $("exceptions").addEventListener("click", (e) => {
   btn.textContent = expanded ? `show all ${btn.dataset.count}` : "show fewer";
 });
 
+$("tech-toggle").addEventListener("click", () => {
+  const open = $("technical-detail").classList.toggle("open");
+  $("tech-toggle").classList.toggle("open", open);
+  $("tech-toggle").lastChild.textContent = open ? "Hide technical details" : "Show technical details";
+});
+
+// ---------------------------------------------------------------- Q&A --
 const QUICK_QUESTIONS = [
   "what's the match rate?",
   "what broke?",
@@ -470,7 +648,7 @@ const QUICK_QUESTIONS = [
   "what does it refuse to guess on?",
 ];
 
-$("qa-chips").innerHTML = QUICK_QUESTIONS.map(q => `<button class="chip" data-q="${q}">${q}</button>`).join("");
+$("qa-chips").innerHTML = QUICK_QUESTIONS.map(q => `<button class="chip btn small" data-q="${q}">${q}</button>`).join("");
 $("qa-chips").addEventListener("click", (e) => {
   const q = e.target.dataset.q;
   if (q) askQuestion(q);
@@ -485,7 +663,7 @@ $("qa-input").addEventListener("keydown", (e) => {
 });
 
 async function askQuestion(question) {
-  if (!batchId || !lastRun) { setStatus("run a batch first before asking questions"); return; }
+  if (!batchId || !lastRun) { return; }
   const log = $("qa-log");
   log.insertAdjacentHTML("beforeend", `<div class="qa-q">${question}</div>`);
   log.scrollTop = log.scrollHeight;
@@ -500,6 +678,178 @@ async function askQuestion(question) {
   }
   log.scrollTop = log.scrollHeight;
 }
+
+// ----------------------------------------------------------- data preview --
+let modalRecordType = "payments";
+
+$("btn-preview").addEventListener("click", openDataModal);
+$("btn-preview-2").addEventListener("click", openDataModal);
+$("modal-close").addEventListener("click", closeDataModal);
+$("data-modal").addEventListener("click", (e) => { if (e.target.id === "data-modal") closeDataModal(); });
+
+async function openDataModal() {
+  if (!batchId) return;
+  $("data-modal").hidden = false;
+  $("modal-table-wrap").innerHTML = `<p class="empty">Loading…</p>`;
+  try {
+    if (!datasetCache) datasetCache = await api(`/batches/${batchId}/data`);
+    renderModalTable(modalRecordType);
+  } catch (e) {
+    $("modal-table-wrap").innerHTML = `<p class="empty">Couldn't load the data: ${e.message}</p>`;
+  }
+}
+
+function closeDataModal() { $("data-modal").hidden = true; }
+
+document.querySelectorAll(".modal-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    modalRecordType = tab.dataset.record;
+    document.querySelectorAll(".modal-tab").forEach(t => t.classList.toggle("active", t === tab));
+    renderModalTable(modalRecordType);
+  });
+});
+
+const RECORD_COLUMNS = {
+  payments: [
+    { key: "id", label: "Payment ID", mono: true },
+    { key: "amount", label: "Amount", fmt: money },
+    { key: "method", label: "Method" },
+    { key: "captured", label: "Captured", fmt: (v) => v ? "yes" : "no" },
+    { key: "amount_refunded", label: "Refunded", fmt: money },
+  ],
+  settlement_lines: [
+    { key: "entity_id", label: "Settlement ID", mono: true },
+    { key: "amount", label: "Amount", fmt: money },
+    { key: "type", label: "Type" },
+    { key: "settled", label: "Settled", fmt: (v) => v ? "yes" : "no" },
+    { key: "settlement_utr", label: "UTR" },
+  ],
+  invoices: [
+    { key: "id", label: "Invoice ID", mono: true },
+    { key: "customer_id", label: "Customer" },
+    { key: "amount", label: "Amount", fmt: money },
+    { key: "status", label: "Status" },
+  ],
+};
+
+const PREVIEW_ROWS = 8;
+
+function renderModalTable(recordType) {
+  const rows = datasetCache[recordType] || [];
+  const cols = RECORD_COLUMNS[recordType];
+  $("modal-title").textContent = `Data preview — ${rows.length.toLocaleString()} records`;
+  if (!rows.length) {
+    $("modal-table-wrap").innerHTML = `<p class="empty">No records of this type in this batch.</p>`;
+    $("modal-note").textContent = "";
+    return;
+  }
+  const shown = rows.slice(0, PREVIEW_ROWS);
+  $("modal-table-wrap").innerHTML = `
+    <table>
+      <thead><tr>${cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>
+      <tbody>
+        ${shown.map(r => `<tr>${cols.map(c => `<td class="${c.mono ? "mono" : ""}">${c.fmt ? c.fmt(r[c.key]) : (r[c.key] ?? "")}</td>`).join("")}</tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+  $("modal-note").textContent = rows.length > PREVIEW_ROWS
+    ? `Showing the first ${PREVIEW_ROWS} of ${rows.length.toLocaleString()} records. Download below for the full set.`
+    : "";
+}
+
+$("btn-download-json").addEventListener("click", () => {
+  if (!datasetCache) return;
+  downloadBlob(JSON.stringify(datasetCache, null, 2), `tieout-data-${batchId}.json`, "application/json");
+});
+
+$("btn-download-csv").addEventListener("click", () => {
+  if (!datasetCache) return;
+  const rows = datasetCache.payments;
+  const header = ["payment_id", "order_id", "amount_inr", "currency", "method", "captured", "amount_refunded_inr", "customer_id"];
+  const lines = [header.join(",")];
+  rows.forEach(p => {
+    lines.push([
+      p.id, p.order_id, (p.amount / 100).toFixed(2), p.currency, p.method,
+      p.captured, (p.amount_refunded / 100).toFixed(2), p.customer_id,
+    ].map(csvEscape).join(","));
+  });
+  downloadBlob(lines.join("\n"), `tieout-payments-${batchId}.csv`, "text/csv");
+});
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ------------------------------------------------------------------- history --
+async function loadHistory() {
+  const body = $("history-body");
+  body.innerHTML = `<div class="empty-state"><p>Loading&hellip;</p></div>`;
+  try {
+    const data = await api("/batches");
+    renderHistory(data.batches);
+  } catch (e) {
+    body.innerHTML = `<div class="empty-state"><p>Couldn't load history: ${e.message}</p></div>`;
+  }
+}
+
+function renderHistory(runs) {
+  const body = $("history-body");
+  if (!runs.length) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <p>No runs yet</p>
+        <span class="hint">Generate some data and reconcile it from the New run tab &mdash; it'll show up here.</span>
+      </div>`;
+    return;
+  }
+  body.innerHTML = `<div id="history-list">${runs.map(r => {
+    const cases = r.cases ?? 0, payments = r.payments ?? 0, settlements = r.settlement_lines ?? 0, invoices = r.invoices ?? 0;
+    const accuracy = r.accuracy ?? 0, falseAutoClose = r.false_auto_close_rate ?? 0;
+    return `
+    <div class="run-card" data-batch-id="${r.id}">
+      <div>
+        <div class="when">${when(r.created_at)}</div>
+        <div class="meta">${cases.toLocaleString()} transactions &middot; ${payments.toLocaleString()} payments &middot; ${settlements.toLocaleString()} settlements &middot; ${invoices.toLocaleString()} invoices</div>
+      </div>
+      <div class="btn-row">
+        <span class="run-badge ${falseAutoClose === 0 ? "good" : "bad"}">${pct(accuracy)} accurate</span>
+        <button class="btn small" data-view-run="${r.id}">View results</button>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+$("history-body").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-view-run]");
+  const card = e.target.closest(".run-card");
+  const id = btn ? btn.dataset.viewRun : (card ? card.dataset.batchId : null);
+  if (!id) return;
+  try {
+    const data = await api(`/batches/${id}`);
+    const cardEl = document.querySelector(`.run-card[data-batch-id="${id}"] .when`);
+    const createdAt = new Date().toISOString(); // fallback; overwritten below if list has it
+    batchId = id;
+    datasetSummary = { payments: null, settlement_lines: null, invoices: null, cases: data.eval.total_cases };
+    datasetCache = null;
+    lastRun = data;
+    render(data, { viewingHistorical: true, createdAt: cardEl ? cardEl.textContent : createdAt });
+    showStage("results");
+    switchTab("new");
+  } catch (e2) {
+    alert(`Couldn't load that run: ${e2.message}`);
+  }
+});
 </script>
 </body>
 </html>

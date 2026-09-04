@@ -484,6 +484,70 @@ verified against https://tieout-lemon.vercel.app directly:
    correctly repopulated with that exact run's original data (matching
    throughput number, not just matching case count).
 
+4. **Non-technical-user overhaul: real navbar + DB-backed history tab,
+   seed/ID clutter removed, data preview & download, collapsed technical
+   detail.** The user flagged that a naive/non-technical user shouldn't see
+   seed numbers, batch IDs, or raw engine internals as the primary UI, and
+   that "previous runs must persist in DB" needed to actually be visible,
+   not just true internally (the old "recent runs" list was localStorage,
+   last 5 only, not the real persistence layer already built in step 5).
+   Consulted advisor before building (per the user's explicit ask) — plan
+   held, but advisor caught real bugs before they shipped:
+   - `GET /batches` for history would have pulled every batch's full
+     dataset/run_result JSON blob over the wire (200-500KB each) just to
+     list them — fixed by adding six nullable summary columns
+     (`payments_count`, `cases_count`, `accuracy`, etc.) to `batches` via a
+     guarded `ALTER TABLE ... ADD COLUMN` (each in its own transaction, so
+     "column already exists" on one doesn't abort the rest) in
+     `db.make_engine()`, so `list_batches()` now selects scalar columns
+     only, never the blobs.
+   - Rows written before this change have those columns NULL — added
+     `_backfill_summary_columns()`, which runs once per row (computes from
+     the existing blobs, sets `cases_count`, then never selects that row
+     again) so old local and production batches don't render blank in
+     history.
+   - `created_at` came back tz-naive from both Postgres and SQLite, which
+     JS parses as local time — every history row would have read ~5:30 in
+     the past for an IST viewer. Fixed by attaching UTC explicitly before
+     `.isoformat()`.
+   - The new `GET /batches/{id}/data` endpoint (for the "what are we
+     working with" preview/download) deliberately excludes `ground_truth`
+     — that's the answer key, and a demo showing it next to the raw data
+     would hand a judge the wrong question to ask.
+   - History defaults to completed runs only (`WHERE run_result_json IS NOT
+     NULL`) — half-created batches from an abandoned session aren't
+     "history" to a non-technical viewer.
+   Frontend: real navbar with New run / History tabs; the seed-42 benchmark
+   button and localStorage recent-runs list are both gone (the one
+   legitimate use of seed-42 — reproducing the exact README/docs numbers —
+   is still `python3 run.py`, unaffected by any of this); a three-stage New
+   Run flow (hero → "N transactions generated" card, no batch ID/seed shown
+   → results) with a data-preview modal (Payments/Settlements/Books tabs,
+   first 8 rows, CSV and full-JSON download) reachable both before and
+   after reconciling; results now lead with a one-line plain-English verdict
+   with the rule/invariant/scorecard detail collapsed behind a "show
+   technical details" toggle; History tab lists real DB-backed past runs
+   (date, transaction count, accuracy badge) and loading one re-renders the
+   exact original results plus its own data preview.
+   **Caught one real CSS bug during verification, not just written and
+   assumed correct**: `#stage-hero`/`#stage-ready`/`#stage-results` each set
+   their own `display` by ID selector, which outranks the browser's default
+   `[hidden]{display:none}` — so on first load, the hero and the "data
+   ready" card rendered simultaneously, stacked. Fixed with an explicit
+   `#stage-x[hidden]{display:none!important}` override; caught by an actual
+   screenshot via Claude-in-Chrome, not by reading the code.
+   **Verified live in a real browser**, full state machine: generate → data
+   preview modal (both Payments and Settlements sub-tabs render real rows)
+   → reconcile → plain-summary + collapsed/expanded technical detail →
+   History tab (4 real past runs, correct dates, no timezone drift) → view
+   a historical run (confirmed it's genuinely that run's own data — a
+   *different* exception's order_id/diff showed up, not the last-viewed
+   run's) → view that historical run's data preview → start a new run
+   (clean reset to the hero, no stale state) → asked a real Q&A chip
+   question and got a real data-grounded answer back. No console errors at
+   any point. All 43 tests pass (41 prior + 2 new `list_batches`/backfill
+   tests).
+
 Also consulted advisor on whether the vanilla-HTML approach itself was
 creating friction for adding features like these — answer: no. Recent
 feature costs (15-60 lines each) show no structural friction; migrating to

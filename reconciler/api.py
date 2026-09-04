@@ -116,6 +116,27 @@ def get_batch(batch_id: str):
   return _run_payload(run, ev)
 
 
+@app.get("/batches/{batch_id}/data")
+def get_batch_data(batch_id: str):
+  """The raw records a batch was generated from, for a "what are we working
+  with" preview/download. Deliberately excludes ground_truth -- that's the
+  answer key, and showing it next to the data invites the wrong question
+  from anyone evaluating the reconciliation accuracy.
+  """
+  batch = _get_batch(batch_id)
+  dataset = batch["dataset"]
+  return {
+    "payments": dataset["payments"],
+    "settlement_lines": dataset["settlement_lines"],
+    "invoices": dataset["invoices"],
+  }
+
+
+@app.get("/batches")
+def list_batches():
+  return {"batches": db.list_batches(_ENGINE)}
+
+
 @app.post("/batches/{batch_id}/ask")
 def ask_batch(batch_id: str, req: AskRequest):
   batch = _get_batch(batch_id)
