@@ -9,6 +9,9 @@ Deterministic rules make every close/escalate decision. An LLM (optional —
 works with none present) only ever writes explanations or answers questions
 about numbers that are already computed. It can never change a decision.
 
+**Live app:** [https://tieout-lemon.vercel.app](https://tieout-lemon.vercel.app)
+— generate a batch, run the loop, ask it a question, no setup needed.
+
 Full background, the competitive analysis, and the technical spec live in
 [`docs/STATUS.md`](docs/STATUS.md) (read this first), [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md),
 and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
