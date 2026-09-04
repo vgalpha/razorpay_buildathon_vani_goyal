@@ -66,7 +66,7 @@
     cursor: pointer; transition: background 0.15s, color 0.15s;
     display: flex; align-items: center; gap: 6px;
   }
-  .nav-tab:hover { color: var(--text); background: var(--panel-3); }
+  .nav-tab:hover { color: var(--text); background: rgba(91,141,238,0.12); }
   .nav-tab.active, .nav-tab.active:hover { background: var(--accent); color: #fff; }
   .nav-tab svg { width: 14px; height: 14px; opacity: 0.8; }
   .nav-tab.active svg { opacity: 1; }
@@ -187,6 +187,12 @@
     border-radius: 7px; padding: 6px 10px; font-family: var(--sans); font-size: 13px; text-align: right;
   }
   .customize-num:focus { outline: none; border-color: var(--accent); }
+  /* Native number-input spin buttons render as an unstyleable white/light
+     box that ignores the dark theme -- drop them rather than fight the
+     browser for control of their colors. */
+  .customize-num::-webkit-outer-spin-button,
+  .customize-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .customize-num { -moz-appearance: textfield; }
   .customize-fault-list { max-height: 260px; overflow-y: auto; }
   .customize-fault-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
   .customize-fault-row .name { font-size: 12.5px; }
@@ -315,7 +321,7 @@
     border-radius: 20px; background: rgba(242,169,59,0.12); color: var(--warn); white-space: nowrap;
   }
   .exc-row { cursor: pointer; }
-  .exc-row:hover td { background: var(--panel-2); }
+  .exc-row:hover td { background: rgba(91,141,238,0.1); }
   .exc-row td:first-child { position: relative; }
   .exc-caret { display: inline-block; margin-right: 6px; color: var(--text-dimmer); transition: transform 0.15s; font-size: 10px; }
   .exc-row.open .exc-caret { transform: rotate(90deg); color: var(--text-dim); }
@@ -343,7 +349,7 @@
     display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer;
     border-bottom: 1px solid var(--border-soft);
   }
-  .quarantine-row:hover { background: var(--panel-2); }
+  .quarantine-row:hover { background: rgba(91,141,238,0.1); }
   .quarantine-row .exc-badge { background: rgba(239,91,91,0.12); color: var(--bad); }
 
   /* ---------- floating "ask a question" widget -- fixed position so it's
@@ -1293,6 +1299,7 @@ async function loadAndRenderPreview() {
 const RECORD_COLUMNS = {
   payments: [
     { key: "id", label: "Payment ID", mono: true },
+    { key: "order_id", label: "Order ID", mono: true },
     { key: "amount", label: "Amount", fmt: money },
     { key: "method", label: "Method" },
     { key: "captured", label: "Captured", fmt: (v) => v ? "yes" : "no" },
@@ -1309,6 +1316,7 @@ const RECORD_COLUMNS = {
   ],
   invoices: [
     { key: "id", label: "Invoice ID", mono: true },
+    { key: "order_id", label: "Order ID", mono: true, fmt: (v) => v ?? "— (not linked to an order)" },
     { key: "customer_id", label: "Customer" },
     { key: "amount", label: "Amount", fmt: money },
     { key: "status", label: "Status" },
