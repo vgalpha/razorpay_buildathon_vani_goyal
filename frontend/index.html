@@ -298,6 +298,13 @@
   .exc-detail-row { background: var(--panel-2); border-bottom: 1px solid var(--border-soft); }
   .exc-detail-row td { background: var(--panel-2); padding: 14px; border-bottom: 1px solid var(--border-soft); }
   .exc-detail-hint { font-size: 12px; color: var(--text-dim); margin: 0 0 10px; }
+  .next-step {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
+    background: rgba(91,141,238,0.08); border: 1px solid rgba(91,141,238,0.25);
+    border-radius: 8px; margin-bottom: 12px;
+  }
+  .next-step .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .next-step .text { font-size: 12.5px; color: var(--text); line-height: 1.5; }
   .record-drill-down { display: flex; flex-wrap: wrap; gap: 10px; }
   .record-card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
@@ -538,7 +545,9 @@ const _isLocal = !location.hostname || location.hostname === "localhost" || loca
 const API_BASE = _isLocal ? "http://localhost:8000" : "";
 
 const $ = (id) => document.getElementById(id);
-const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+const money = (paise) => Number.isFinite(paise)
+  ? `₹${(paise / 100).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+  : "(invalid amount)";
 const pct = (x) => `${(x * 100).toFixed(x < 1 ? 2 : 1)}%`;
 const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -832,6 +841,41 @@ async function ensureDatasetCache() {
 const DRILL_DOWN_KIND_LABEL = { payment: "Payment", settlement: "Settlement", invoice: "Invoice" };
 const DRILL_DOWN_COLUMNS = { payment: "payments", settlement: "settlement_lines", invoice: "invoices" };
 
+// Plain-English "what do I actually do about this" per category -- the
+// drill-down above answers "what are the real numbers", this answers "now
+// what". Only covers categories that can actually reach the flagged/
+// quarantine sections (decision === "escalate" or "quarantine"); the
+// auto_close-only fault types (clean_match, rounding_noise, refund_clean,
+// books_clean_match) never surface here, so they get no entry. Note on
+// amount_mismatch: this is also where a cross-border/FX-caused mismatch
+// would land (see README's "one thing it's honest about not solving") --
+// the engine can't tell the two apart, so the hint says so instead of
+// pretending it's always a real discrepancy.
+const CATEGORY_HINTS = {
+  amount_mismatch:
+    "Compare the payment and settlement amounts above. If the gap matches a fee or tax you recognize, correct the expected amount; if it doesn't, check whether this was a cross-border payment -- the engine can't distinguish a real mismatch from an FX conversion it has no model for.",
+  multi_payment_ambiguous:
+    "This order has more than one payment, and the settlement line only carries the order ID -- not which payment it belongs to. Check the payment amounts above against the settlement amount; if exactly one matches, that's very likely the right one. Otherwise, ask the gateway to confirm.",
+  missing_settlement:
+    "The payment was captured but no settlement record exists for it. Confirm with the payment gateway that it actually settled (not just authorized) -- if it's genuinely missing, that's money to chase.",
+  duplicate_settlement:
+    "More than one settlement line was found for a single payment. Check the settlement records above for whether this is a real double payout or a duplicate entry in the settlement file -- a real duplicate needs to be flagged to the gateway right away.",
+  refund_mismatch:
+    "The refund amount on the settlement side doesn't match what the payment record shows as refunded. Confirm the correct refund amount with the gateway or bank statement, then correct whichever record is wrong.",
+  disputed:
+    "This payment has an open dispute and is never auto-closed regardless of amount, by design. Check the dispute's status and resolution in your disputes/chargeback system before doing anything else with it.",
+  high_value_gate:
+    "Nothing is actually wrong here -- this is otherwise a clean match, just above the auto-close ceiling by policy. It only needs a manual sign-off, not an investigation.",
+  books_duplicate_invoice_collision:
+    "Two or more open invoices match this customer and amount, so the system can't tell which one this payment settles. Check the invoice records above and close the correct one by hand.",
+  books_missing_invoice:
+    "The payment settled cleanly on the gateway side, but no invoice exists for it in the books. Raise the missing invoice for this customer and amount.",
+  books_amount_mismatch:
+    "An invoice exists for this customer, but its amount doesn't match the payment. Issue a correction (credit or debit note) for whichever side is wrong.",
+  quarantine:
+    "This isn't a transaction to reconcile -- the record itself is structurally broken (see the reason above). Report it to whoever owns the upstream data export or integration; nothing here needs manual reconciliation.",
+};
+
 function renderRecordCard(kind, record) {
   const cols = RECORD_COLUMNS[DRILL_DOWN_COLUMNS[kind]];
   return `
@@ -843,11 +887,23 @@ function renderRecordCard(kind, record) {
     </div>`;
 }
 
-function renderDrillDown(recordIds) {
-  if (expandedLoading || !datasetIndex) return `<p class="exc-detail-hint">Loading source records&hellip;</p>`;
-  const hits = (recordIds || []).map((id) => datasetIndex[id]).filter(Boolean);
-  if (!hits.length) return `<p class="exc-detail-hint">No matching source records found for this case.</p>`;
+function renderNextStep(reasonCategory) {
+  const hint = CATEGORY_HINTS[reasonCategory];
+  if (!hint) return "";
   return `
+    <div class="next-step">
+      <span class="label">Next step</span>
+      <span class="text">${hint}</span>
+    </div>`;
+}
+
+function renderDrillDown(recordIds, reasonCategory) {
+  const nextStep = renderNextStep(reasonCategory);
+  if (expandedLoading || !datasetIndex) return `${nextStep}<p class="exc-detail-hint">Loading source records&hellip;</p>`;
+  const hits = (recordIds || []).map((id) => datasetIndex[id]).filter(Boolean);
+  if (!hits.length) return `${nextStep}<p class="exc-detail-hint">No matching source records found for this case.</p>`;
+  return `
+    ${nextStep}
     <p class="exc-detail-hint">Source records this decision was made from:</p>
     <div class="record-drill-down">${hits.map((h) => renderRecordCard(h.kind, h.record)).join("")}</div>`;
 }
@@ -946,7 +1002,7 @@ function renderQuarantineSection() {
         <span class="mono" style="font-size:13px;">${d.case_id}</span>
         <span style="font-size:13px; color:var(--text-dim);">${d.reason_detail}</span>
       </div>
-      ${expandedQuarantineId === d.case_id ? `<div class="exc-detail-row" style="padding:14px;">${renderDrillDown(d.record_ids)}</div>` : ""}
+      ${expandedQuarantineId === d.case_id ? `<div class="exc-detail-row" style="padding:14px;">${renderDrillDown(d.record_ids, d.reason_category)}</div>` : ""}
     </div>
   `).join("");
   $("quarantine-list").querySelectorAll(".quarantine-row").forEach((row) => {
@@ -1011,7 +1067,7 @@ function renderExceptionsTable() {
             <td class="reason">${d.reason_detail}</td>
           </tr>
           ${expandedExceptionId === d.case_id ? `
-            <tr class="exc-detail-row"><td colspan="3">${renderDrillDown(d.record_ids)}</td></tr>
+            <tr class="exc-detail-row"><td colspan="3">${renderDrillDown(d.record_ids, d.reason_category)}</td></tr>
           ` : ""}
         `).join("")}
       </tbody>
