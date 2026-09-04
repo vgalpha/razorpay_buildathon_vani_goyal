@@ -37,7 +37,10 @@ _ALLOW_LIVE_ORDERS = os.environ.get("ALLOW_LIVE_ORDERS") == "1"
 
 
 TOTAL_CASES_MIN = 20
-TOTAL_CASES_MAX = 1000  # payload-size guardrail, not a compute-time one -- see docs/STATUS.md
+# Payload-size guardrail, not a compute-time one. Verified against the
+# actual deployed function at this ceiling (2026-09-04): run ~1.6s at 100%
+# accuracy, /data response ~660KB -- see docs/STATUS.md.
+TOTAL_CASES_MAX = 1000
 
 
 class GenerateRequest(BaseModel):

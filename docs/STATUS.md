@@ -824,6 +824,73 @@ confirmed hint text renders above the source records as intended. All 43
 backend tests pass (frontend-only change). Committed as `c46cac2`,
 deployed, confirmed live via curl.
 
+### Randomized and configurable batch generation counts (2026-09-04)
+
+Two asks from earlier in the session, picked back up once the user
+confirmed they wanted them: "the number of payments/settlements/invoices
+is always the same across runs — can we randomize it within a range?" and
+"let the user optionally enter total transaction count and per-fault-type
+counts."
+
+The hard constraint going in: `generate_dataset(seed=42)` with no
+arguments is the documented "207 cases, seed 42, 100% accuracy" verified
+benchmark cited throughout this file and the README, and `run.py`'s CLI
+path plus the existing test suite all call it that way. Any change had to
+leave that call byte-identical. Captured the exact baseline before
+touching anything (case/payment/settlement/invoice counts, first and last
+payment IDs, first settlement/invoice IDs) and asserted it in a new
+`tests/test_generate.py` — verified unchanged after the refactor.
+
+`generate_dataset()` gained one optional parameter, `fault_counts` (a
+`{fault_type: count}` override dict), but stays otherwise pure and
+deterministic given its arguments — it does not itself decide whether to
+jitter, scale, or use defaults. That policy lives in two new standalone
+functions: `jitter_taxonomy_counts(seed, spread=0.3)` (each class bumped
+up by a random amount, capped at +30%, **never down** — `_build_quarantine`
+cycles through 5 distinct malformation types across its 5 default cases,
+so jittering that class below 5 would silently stop exercising some of
+them) and `scale_taxonomy_counts(total_cases)` (proportional, no
+randomness — deliberately deterministic, since a user who asks for a
+specific total wants predictable sizing, not more variety layered on top).
+
+`POST /batches` gained optional `fault_counts` and `total_cases` fields,
+resolved in a new `_resolve_fault_counts()`: neither given (the plain
+"Generate sample data" click, unchanged for anyone who never opens the new
+panel) → jittered, so repeat clicks now visibly vary in size.
+`total_cases` alone → scaled, no jitter. `fault_counts` (with or without
+`total_cases`) → explicit per-class values win over whatever `total_cases`
+would have scaled them to; unknown fault-type keys are rejected with a 400.
+A new `GET /taxonomy` endpoint reflects `taxonomy.py`'s fault-type catalog
+(description, default count, expected decision) so the frontend doesn't
+duplicate that list.
+
+`total_cases` is clamped to `[20, 1000]`. Per earlier advisor guidance —
+"pick the ceiling from what the payload can actually carry... test against
+the *deployed* function, not locally" — 1000 was verified directly against
+the live Vercel deployment before being treated as final, not just assumed
+safe from local timing: a `total_cases=1000` batch generated in ~0.85s,
+reconciled in ~1.6s at 100% accuracy, and its `/data` response was ~660KB
+— all comfortably inside serverless limits. If this ever needs to go
+higher, that payload size (not compute time) is the thing to re-check.
+
+Frontend: a collapsed-by-default "Customize this batch (optional)" panel
+below "Generate sample data" — deliberately not the default view, matching
+this project's standing "non-technical user first" UI principle. A total-
+transactions field plus a scrollable list of all 16 fault types (name,
+plain-English description, count input defaulting to a placeholder showing
+the current default), fetched lazily from `/taxonomy` only on first
+expand. Every field left blank is simply omitted from the request body, so
+the default jittered behavior needs no special-casing on the frontend.
+
+**Verified end-to-end, live**, both locally and against the deployed
+function: generated a batch with `total_cases=400` and an explicit
+`quarantine=10` override locally in Chrome — got 397 total cases with
+exactly 10 quarantine rows rendered in the flagged/quarantine UI from the
+previous change, no console errors; separately hit the deployed
+`/batches`, `/batches/{id}/run`, and `/batches/{id}/data` endpoints
+directly via curl at the `total_cases=1000` ceiling (see above). All 55
+backend tests pass. Committed as `d4f4f4f`, deployed, confirmed live.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
