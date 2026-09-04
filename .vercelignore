@@ -1,0 +1,12 @@
+.env
+.git
+__pycache__/
+*.pyc
+out/
+tests/
+docs/
+.pytest_cache/
+.claude/
+Dockerfile
+.dockerignore
+Procfile

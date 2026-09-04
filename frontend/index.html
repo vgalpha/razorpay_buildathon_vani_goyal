@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TieOut</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-2: #191d23;
+    --border: #262b33;
+    --text: #e6e8eb;
+    --text-dim: #8b93a1;
+    --text-dimmer: #5f6673;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --accent: #5b8dee;
+    --good: #3ecf8e;
+    --bad: #ef5b5b;
+    --warn: #f2a93b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+    padding: 28px 24px 60px; max-width: 1080px; margin-inline: auto;
+  }
+
+  header {
+    padding-bottom: 14px;
+  }
+  h1 { font-size: 16px; margin: 0; letter-spacing: 0.02em; font-weight: 600; }
+  h1 span { color: var(--text-dim); font-weight: 400; }
+
+  /* ---------- control panel: hero pre-run, slim bar post-run ---------- */
+  #control-panel {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 22px; padding: 56px 16px 48px; transition: padding 0.2s ease;
+  }
+  #tagline { font-size: 17px; line-height: 1.65; color: var(--text); max-width: 580px; margin: 0; }
+  #controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  label[for=seed] { font-size: 12px; color: var(--text-dim); }
+  input[type=number] {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; width: 100px; font-family: var(--mono); font-size: 13px;
+  }
+  button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 9px 16px; cursor: pointer; font-size: 13px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #status-line { font-family: var(--mono); font-size: 12px; color: var(--text-dim); min-height: 16px; }
+
+  body.has-run #control-panel {
+    flex-direction: row; text-align: left; padding: 0 0 18px;
+    border-bottom: 1px solid var(--border); margin-bottom: 28px;
+  }
+  body.has-run #tagline { display: none; }
+  body.has-run #status-line { margin-left: auto; text-align: right; }
+
+  /* ---------- results ---------- */
+  #results { opacity: 0; transition: opacity 0.35s ease; }
+  #results.show { opacity: 1; }
+
+  .zone { margin-bottom: 34px; }
+  .zone:last-child { margin-bottom: 0; }
+  .zone-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-dimmer); margin: 0 0 12px; padding-left: 2px;
+  }
+
+  /* headline metric cards -- visually dominant */
+  .zone-headline {
+    background: linear-gradient(180deg, rgba(91,141,238,0.08), rgba(91,141,238,0));
+    border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+  }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .card .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .card .value { font-family: var(--mono); font-size: 32px; margin-top: 8px; font-weight: 600; }
+  .card.safety .value.zero { color: var(--good); }
+  .card.safety .value.nonzero { color: var(--bad); }
+
+  /* secondary / supporting detail -- visually quieter */
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 0 0 12px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .detail-grid:last-child { margin-bottom: 0; }
+  section.compact { padding: 13px 15px; background: var(--bg); }
+  section.compact h2 { font-size: 11px; margin-bottom: 9px; color: var(--text-dimmer); }
+  section.compact table { font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+  td.mono, th.mono { font-family: var(--mono); }
+  .ok { color: var(--good); }
+  .fail { color: var(--bad); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.ok { background: var(--good); }
+  .dot.fail { background: var(--bad); }
+
+  .trace-line {
+    font-family: var(--mono); font-size: 12px; padding: 3px 0; color: var(--text-dim);
+    display: flex; justify-content: space-between;
+  }
+  section.compact .trace-line { font-size: 11px; padding: 2px 0; }
+  .trace-line .name { color: var(--text); }
+  .trace-line.reveal { opacity: 0; transform: translateY(4px); transition: opacity 0.28s ease, transform 0.28s ease; }
+  .trace-line.reveal.show { opacity: 1; transform: translateY(0); }
+
+  /* "what needs a human" zone */
+  .limitations { border: 1px solid var(--warn); background: rgba(242, 169, 59, 0.06); margin-top: 14px; }
+  .limitations h2 { color: var(--warn); }
+  .exception-card {
+    border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; background: var(--panel-2);
+  }
+  .exception-card .cat { font-family: var(--mono); font-size: 11px; color: var(--warn); text-transform: uppercase; }
+  .exception-card .id { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin: 3px 0; }
+  .exception-card .detail { font-size: 13px; line-height: 1.5; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { font-size: 12px; padding: 6px 10px; }
+  #qa-log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; max-height: 260px; overflow-y: auto; }
+  .qa-q { align-self: flex-end; background: var(--accent); color: #fff; padding: 8px 12px; border-radius: 10px 10px 2px 10px; max-width: 80%; font-size: 13px; }
+  .qa-a { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px 10px 10px 2px; max-width: 80%; font-size: 13px; line-height: 1.5; }
+  #qa-input-row { display: flex; gap: 8px; }
+  #qa-input { flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 12px; font-family: var(--sans); }
+  .empty { color: var(--text-dim); font-size: 13px; font-style: italic; }
+
+  @media (max-width: 720px) {
+    .detail-grid { grid-template-columns: 1fr; }
+    body.has-run #control-panel { flex-direction: column; text-align: center; }
+    body.has-run #status-line { margin-left: 0; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TieOut <span>/ payments &middot; settlements &middot; books</span></h1>
+</header>
+
+<div id="control-panel">
+  <p id="tagline">
+    TieOut reconciles Razorpay payments, settlements, and books in a single pass &mdash;
+    auto-closing what it's certain about, and escalating everything else with a plain-English
+    reason instead of guessing.
+  </p>
+  <div id="controls-row">
+    <label for="seed">seed</label>
+    <input type="number" id="seed" placeholder="random">
+    <button id="btn-new-batch">new batch</button>
+    <button id="btn-run" class="primary" disabled>run the loop</button>
+  </div>
+  <div id="status-line">no batch yet &mdash; generate one to begin</div>
+</div>
+
+<div id="results" hidden>
+
+  <div class="zone zone-headline">
+    <div class="cards" id="metric-cards"></div>
+  </div>
+
+  <div class="zone">
+    <div class="zone-title">How it decided</div>
+    <div class="detail-grid">
+      <section class="compact">
+        <h2>Invariants</h2>
+        <div id="invariants"></div>
+      </section>
+      <section class="compact">
+        <h2>Engine trace &mdash; per pass</h2>
+        <div id="trace"></div>
+      </section>
+    </div>
+    <div class="detail-grid">
+      <section class="compact">
+        <h2>Per-fault-class accuracy</h2>
+        <table id="fault-class-table"><thead><tr><th>fault type</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
+      </section>
+      <section class="compact">
+        <h2>Per-rule scorecard</h2>
+        <table id="rule-table"><thead><tr><th>rule</th><th class="mono">correct/total</th><th class="mono">accuracy</th></tr></thead><tbody></tbody></table>
+      </section>
+    </div>
+  </div>
+
+  <div class="zone">
+    <div class="zone-title">What needs a human</div>
+    <section>
+      <h2>Exceptions &mdash; escalated, with the actual reason</h2>
+      <div id="exceptions"></div>
+    </section>
+    <section class="limitations">
+      <h2>Known limitation &mdash; disclosed on purpose</h2>
+      <p style="font-size:13px; line-height:1.6; margin:0;">
+        <strong>International / cross-border payments settled in INR after FX conversion are not modeled.</strong>
+        The engine has no currency-conversion logic, so it correctly refuses to auto-close these (it never mis-closes
+        a case it doesn't understand) -- but it can only label the discrepancy a generic <code>amount_mismatch</code>,
+        not identify the true FX cause. This is a safe-failure gap: it over-escalates rather than guessing, and we're
+        stating it here rather than hiding it.
+      </p>
+    </section>
+  </div>
+
+  <div class="zone">
+    <div class="zone-title">Ask it</div>
+    <section>
+      <h2>Ask the ledger</h2>
+      <div class="chips" id="qa-chips"></div>
+      <div id="qa-log"></div>
+      <div id="qa-input-row">
+        <input id="qa-input" type="text" placeholder="ask about this run, e.g. why was order_XXXX escalated">
+        <button id="qa-send">ask</button>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+<script>
+// Local dev (plain `uvicorn reconciler.api:app`, opened via localhost or
+// file://) talks to a separately-running backend on :8000. Any other host
+// (a Vercel deployment) serves frontend and API from the same origin, so a
+// relative (empty) base resolves correctly with no manual editing needed.
+const _isLocal = !location.hostname || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const API_BASE = _isLocal ? "http://localhost:8000" : "";
+
+let batchId = null;
+let lastEval = null;
+let lastRun = null;
+
+const $ = (id) => document.getElementById(id);
+const money = (paise) => `₹${(paise / 100).toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+const pct = (x) => `${(x * 100).toFixed(x < 1 ? 2 : 1)}%`;
+
+function setStatus(text) { $("status-line").textContent = text; }
+
+function setHasRun(v) {
+  document.body.classList.toggle("has-run", v);
+  const results = $("results");
+  if (v) {
+    results.hidden = false;
+    results.classList.remove("show");
+    void results.offsetWidth; // force reflow so the transition fires
+    results.classList.add("show");
+  } else {
+    results.hidden = true;
+    results.classList.remove("show");
+  }
+}
+
+async function api(path, opts) {
+  const res = await fetch(API_BASE + path, opts);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+$("btn-new-batch").addEventListener("click", async () => {
+  setStatus("generating batch...");
+  $("btn-new-batch").disabled = true;
+  try {
+    const seedVal = $("seed").value ? parseInt($("seed").value, 10) : null;
+    const body = { order_mode: "synthetic" };
+    if (seedVal !== null) body.seed = seedVal;
+    const data = await api("/batches", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body) });
+    batchId = data.batch_id;
+    setStatus(`batch ${batchId} -- seed ${data.seed} -- ${data.cases} cases (${data.payments} payments, ${data.settlement_lines} settlement lines, ${data.invoices} invoices)`);
+    $("btn-run").disabled = false;
+    resetPanels();
+  } catch (e) {
+    setStatus(`error generating batch: ${e.message}`);
+  } finally {
+    $("btn-new-batch").disabled = false;
+  }
+});
+
+$("btn-run").addEventListener("click", async () => {
+  if (!batchId) return;
+  setStatus(`running reconciliation on ${batchId}...`);
+  $("btn-run").disabled = true;
+  try {
+    const data = await api(`/batches/${batchId}/run`, { method: "POST" });
+    render(data);
+    setStatus(`batch ${batchId} -- loop closed -- ${data.eval.total_cases} cases in ${(data.wall_time_seconds*1000).toFixed(2)}ms`);
+  } catch (e) {
+    setStatus(`error running batch: ${e.message}`);
+  } finally {
+    $("btn-run").disabled = false;
+  }
+});
+
+function resetPanels() {
+  setHasRun(false);
+  $("metric-cards").innerHTML = "";
+  $("invariants").innerHTML = "";
+  $("trace").innerHTML = "";
+  $("fault-class-table").querySelector("tbody").innerHTML = "";
+  $("rule-table").querySelector("tbody").innerHTML = "";
+  $("exceptions").innerHTML = "";
+  $("qa-log").innerHTML = "";
+}
+
+function render(data) {
+  lastEval = data.eval;
+  lastRun = data;
+  renderCards(data.eval);
+  renderInvariants(data.invariants);
+  renderTable("fault-class-table", data.eval.per_fault_class);
+  renderTable("rule-table", data.eval.per_rule);
+  renderExceptions(data.decisions);
+  setHasRun(true);
+  renderTrace(data.pass_timings_ms, data.pass_hit_counts);
+}
+
+function renderCards(ev) {
+  const zero = ev.false_auto_close_rate === 0;
+  $("metric-cards").innerHTML = `
+    <div class="card"><div class="label">overall accuracy</div><div class="value">${pct(ev.overall_accuracy)}</div></div>
+    <div class="card safety"><div class="label">false auto-close rate (safety)</div><div class="value ${zero ? "zero" : "nonzero"}">${pct(ev.false_auto_close_rate)}</div></div>
+    <div class="card"><div class="label">throughput</div><div class="value">${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s</div></div>
+    <div class="card"><div class="label">records processed</div><div class="value">${ev.total_cases}</div></div>
+  `;
+}
+
+function renderInvariants(invariants) {
+  const el = $("invariants");
+  el.innerHTML = Object.entries(invariants).map(([name, held]) => `
+    <div><span class="dot ${held ? "ok" : "fail"}"></span><span class="${held ? "ok" : "fail"}">${held ? "HOLDS" : "FAILED"}</span> &nbsp; <span class="mono" style="color:var(--text-dim)">${name}</span></div>
+  `).join("");
+}
+
+function renderTrace(timings, hits) {
+  const el = $("trace");
+  const names = Object.keys(timings);
+  if (!names.length) { el.innerHTML = '<div class="empty">no passes fired</div>'; return; }
+  el.innerHTML = names.map((name) => `
+    <div class="trace-line reveal"><span class="name">${name}</span><span>${(hits[name] || 0)} decided &middot; ${timings[name].toFixed(3)}ms</span></div>
+  `).join("");
+  // Progressive reveal: each pass line fades in in sequence rather than
+  // popping in all at once -- this mirrors the engine actually running its
+  // passes in order.
+  el.querySelectorAll(".trace-line").forEach((line, i) => {
+    setTimeout(() => line.classList.add("show"), 90 + i * 140);
+  });
+}
+
+function renderTable(tableId, data) {
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = Object.entries(data).map(([key, v]) => `
+    <tr><td>${key}</td><td class="mono">${v.correct}/${v.total}</td><td class="mono ${v.accuracy === 1 ? "ok" : "fail"}">${pct(v.accuracy)}</td></tr>
+  `).join("");
+}
+
+function renderExceptions(decisions) {
+  const escalated = decisions.filter(d => d.decision === "escalate");
+  const el = $("exceptions");
+  if (!escalated.length) { el.className = "empty"; el.textContent = "no exceptions -- every case auto-closed"; return; }
+  el.className = "";
+  const byCat = {};
+  escalated.forEach(d => { (byCat[d.reason_category] ||= []).push(d); });
+  el.innerHTML = Object.entries(byCat).sort().map(([cat, items]) => `
+    <div style="margin-bottom:14px;">
+      <div style="font-family:var(--mono); font-size:12px; color:var(--text-dim); margin-bottom:6px;">${cat} (${items.length})</div>
+      ${items.map(d => `
+        <div class="exception-card">
+          <div class="cat">${d.rule}</div>
+          <div class="id">${d.case_id}</div>
+          <div class="detail">${d.reason_detail}</div>
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+}
+
+const QUICK_QUESTIONS = [
+  "what's the match rate?",
+  "what broke?",
+  "how fast was the run?",
+  "what's the biggest exception?",
+  "what does it refuse to guess on?",
+];
+
+$("qa-chips").innerHTML = QUICK_QUESTIONS.map(q => `<button class="chip" data-q="${q}">${q}</button>`).join("");
+$("qa-chips").addEventListener("click", (e) => {
+  const q = e.target.dataset.q;
+  if (q) askQuestion(q);
+});
+
+$("qa-send").addEventListener("click", () => {
+  const q = $("qa-input").value.trim();
+  if (q) { askQuestion(q); $("qa-input").value = ""; }
+});
+$("qa-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("qa-send").click();
+});
+
+async function askQuestion(question) {
+  if (!batchId || !lastRun) { setStatus("run a batch first before asking questions"); return; }
+  const log = $("qa-log");
+  log.insertAdjacentHTML("beforeend", `<div class="qa-q">${question}</div>`);
+  log.scrollTop = log.scrollHeight;
+  try {
+    const data = await api(`/batches/${batchId}/ask`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ question }),
+    });
+    log.insertAdjacentHTML("beforeend", `<div class="qa-a">${data.answer}</div>`);
+  } catch (e) {
+    log.insertAdjacentHTML("beforeend", `<div class="qa-a">error: ${e.message}</div>`);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>
