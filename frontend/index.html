@@ -217,6 +217,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 18px; flex-wrap: wrap; transition: border-color 0.15s;
+    cursor: pointer;
   }
   .run-card:hover { border-color: var(--accent-dim); }
   .run-card .when { font-size: 14px; font-weight: 600; }
@@ -533,8 +534,18 @@ document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
 
-function switchTab(name) {
+// Kept separate from which panel is visible: viewing a past run's results
+// (reached via History -> "View results") shows the #tab-new panel (that's
+// where the results markup lives) while the "History" nav pill stays the
+// one marked active -- the user is still conceptually browsing history,
+// just drilled into one run, not starting a fresh one. See the
+// data-view-run handler below.
+function setActiveNavTab(name) {
   document.querySelectorAll(".nav-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+}
+
+function switchTab(name) {
+  setActiveNavTab(name);
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "history") {
     // The chat launcher/panel are fixed-position siblings of <main>, not
@@ -595,6 +606,11 @@ $("btn-start-over").addEventListener("click", () => {
   resetResultPanels();
   $("data-preview-section").hidden = true;
   $("btn-preview-2").textContent = "View data";
+  // If this was reached from History -> "View results", the History pill
+  // is currently the active nav tab (see setActiveNavTab) even though the
+  // #tab-new panel is what's showing -- starting a fresh run means the
+  // user is no longer browsing history, so restore "New run" as active.
+  setActiveNavTab("new");
   showStage("hero");
 });
 
@@ -1131,8 +1147,9 @@ $("history-body").addEventListener("click", async (e) => {
     render(data, { viewingHistorical: true, createdAt: cardEl ? cardEl.textContent : createdAt });
     $("data-preview-section").hidden = true;
     $("btn-preview-2").textContent = "View data";
-    showStage("results");
-    switchTab("new");
+    showStage("results"); // shows #tab-new's results (and the chat fab) -- see setActiveNavTab's comment above
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "tab-new"));
+    setActiveNavTab("history");
   } catch (e2) {
     alert(`Couldn't load that run: ${e2.message}`);
   }
