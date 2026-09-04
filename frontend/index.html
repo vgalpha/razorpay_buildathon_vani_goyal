@@ -224,30 +224,37 @@
   .empty-state p { margin: 0; font-size: 14px; }
   .empty-state .hint { font-size: 12.5px; color: var(--text-dimmer); }
 
-  /* ---------- data preview modal ---------- */
-  #data-modal {
-    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.6);
-    display: flex; align-items: center; justify-content: center; padding: 24px;
-  }
-  #data-modal[hidden] { display: none; }
-  .modal-panel {
+  /* ---------- data preview panel (inline, no modal) ---------- */
+  #data-preview-section { margin-top: 30px; }
+  .preview-panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-    width: 100%; max-width: 760px; max-height: 84vh; display: flex; flex-direction: column;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    overflow: hidden;
   }
-  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-  .modal-header h2 { font-size: 15px; margin: 0; font-weight: 600; }
-  .modal-close { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; }
-  .modal-close:hover { color: var(--text); }
-  .modal-tabs { display: flex; gap: 6px; padding: 12px 20px 0; }
-  .modal-tab {
+  .preview-tabs {
+    display: flex; align-items: center; gap: 4px; padding: 10px 14px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .preview-tab {
     background: none; border: none; color: var(--text-dim); font-size: 13px; font-weight: 500;
-    padding: 8px 4px; cursor: pointer; border-bottom: 2px solid transparent;
+    padding: 8px 10px; cursor: pointer; border-bottom: 2px solid transparent; border-radius: 6px 6px 0 0;
   }
-  .modal-tab.active { color: var(--text); border-bottom-color: var(--accent); }
-  .modal-body { padding: 14px 20px; overflow: auto; flex: 1; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
-  .modal-note { font-size: 12px; color: var(--text-dimmer); margin: 10px 0 0; }
+  .preview-tab:hover { color: var(--text); }
+  .preview-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .preview-actions { display: flex; gap: 8px; margin-left: auto; }
+  /* Bounded height + its own scrollbar: on a big batch this is what lets
+     someone actually scroll through everything right here, rather than
+     only ever seeing one page-sized slice. */
+  .preview-table-scroll { max-height: 420px; overflow-y: auto; overflow-x: auto; }
+  .preview-table-scroll table { font-size: 13px; }
+  .preview-table-scroll thead th {
+    position: sticky; top: 0; background: var(--panel); z-index: 1;
+  }
+  .preview-pagination {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 12px 14px; border-top: 1px solid var(--border);
+  }
+  .preview-pagination span { font-size: 12.5px; color: var(--text-dim); }
+  .preview-note { font-size: 12px; color: var(--text-dimmer); padding: 0 14px 12px; margin: 0; }
 
   @media (max-width: 720px) {
     .detail-grid { grid-template-columns: 1fr; }
@@ -296,12 +303,31 @@
         <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
       <h2 id="ready-headline">Data is ready</h2>
-      <p id="ready-subtext">Take a look at what was generated, or go straight to reconciling it.</p>
-      <div class="btn-row">
-        <button id="btn-preview" class="btn">Preview &amp; download data</button>
-        <button id="btn-run" class="btn primary">Reconcile now</button>
-      </div>
+      <p id="ready-subtext">Here's what was generated &mdash; go straight to reconciling it, or look through the records below first.</p>
+      <button id="btn-run" class="btn primary">Reconcile now</button>
     </div>
+    <div id="preview-slot-ready"></div>
+
+    <section id="data-preview-section" hidden>
+      <div class="zone-title">What's in this batch</div>
+      <div class="preview-panel">
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-record="payments">Payments</button>
+          <button class="preview-tab" data-record="settlement_lines">Settlements</button>
+          <button class="preview-tab" data-record="invoices">Books / invoices</button>
+          <div class="preview-actions">
+            <button id="btn-download-csv" class="btn small">Download CSV</button>
+            <button id="btn-download-json" class="btn small">Download JSON</button>
+          </div>
+        </div>
+        <div id="preview-table-wrap" class="preview-table-scroll"></div>
+        <div class="preview-pagination">
+          <button id="preview-prev" class="btn small">Previous</button>
+          <span id="preview-page-info"></span>
+          <button id="preview-next" class="btn small">Next</button>
+        </div>
+      </div>
+    </section>
 
     <div id="stage-results" hidden>
       <div id="results-topbar">
@@ -311,6 +337,7 @@
           <button id="btn-start-over" class="btn small">Start a new run</button>
         </div>
       </div>
+      <div id="preview-slot-results"></div>
 
       <div id="results">
 
@@ -392,28 +419,6 @@
 
 </main>
 
-<div id="data-modal" hidden>
-  <div class="modal-panel">
-    <div class="modal-header">
-      <h2 id="modal-title">Data preview</h2>
-      <button class="modal-close" id="modal-close">&times;</button>
-    </div>
-    <div class="modal-tabs">
-      <button class="modal-tab active" data-record="payments">Payments</button>
-      <button class="modal-tab" data-record="settlement_lines">Settlements</button>
-      <button class="modal-tab" data-record="invoices">Books / invoices</button>
-    </div>
-    <div class="modal-body">
-      <div id="modal-table-wrap"></div>
-      <p class="modal-note" id="modal-note"></p>
-    </div>
-    <div class="modal-footer">
-      <button id="btn-download-csv" class="btn small">Download payments (CSV)</button>
-      <button id="btn-download-json" class="btn small">Download full dataset (JSON)</button>
-    </div>
-  </div>
-</div>
-
 <script>
 // Local dev (plain `uvicorn reconciler.api:app`, opened via localhost or
 // file://) talks to a separately-running backend on :8000. Any other host
@@ -439,7 +444,7 @@ async function api(path, opts) {
 // ---------------------------------------------------------------- state --
 let batchId = null;
 let datasetSummary = null;   // {payments, settlement_lines, invoices, cases}
-let datasetCache = null;     // fetched lazily when the preview modal opens
+let datasetCache = null;     // fetched lazily the first time the preview is shown
 let lastRun = null;
 
 // -------------------------------------------------------------- nav tabs --
@@ -478,6 +483,7 @@ async function generateBatch() {
     $("ready-headline").textContent = `${data.cases.toLocaleString()} transactions generated`;
     $("ready-subtext").textContent = `${data.payments.toLocaleString()} payments, ${data.settlement_lines.toLocaleString()} settlement lines, and ${data.invoices.toLocaleString()} invoice records are ready to check.`;
     showStage("ready");
+    await openPreview("preview-slot-ready");
   } catch (e) {
     alert(`Couldn't generate data: ${e.message}`);
   } finally {
@@ -489,6 +495,8 @@ async function generateBatch() {
 $("btn-start-over").addEventListener("click", () => {
   batchId = null; datasetSummary = null; datasetCache = null; lastRun = null;
   resetResultPanels();
+  $("data-preview-section").hidden = true;
+  $("btn-preview-2").textContent = "View data";
   showStage("hero");
 });
 
@@ -503,6 +511,12 @@ async function runReconciliation() {
     const data = await api(`/batches/${batchId}/run`, { method: "POST" });
     lastRun = data;
     render(data, { justRan: true });
+    // The preview auto-shown on the "ready" stage would otherwise keep
+    // floating on screen (it's a sibling of the stage divs, not inside
+    // one) -- collapse it back to click-to-view now that the fuller
+    // results view has its own "View data" toggle.
+    $("data-preview-section").hidden = true;
+    $("btn-preview-2").textContent = "View data";
     showStage("results");
   } catch (e) {
     alert(`Couldn't reconcile this batch: ${e.message}`);
@@ -680,34 +694,59 @@ async function askQuestion(question) {
 }
 
 // ----------------------------------------------------------- data preview --
-let modalRecordType = "payments";
+// Shown inline (never a modal) -- automatically on the "ready" stage right
+// after a batch is generated, and behind a "View data" toggle once results
+// are showing (that page already has a lot on it, so there it opens on
+// request rather than always-on). Same panel DOM node, physically moved
+// into whichever "slot" div matches the current stage.
+let previewRecordType = "payments";
+let previewPage = 0;
+const PREVIEW_PAGE_SIZE = 20;
 
-$("btn-preview").addEventListener("click", openDataModal);
-$("btn-preview-2").addEventListener("click", openDataModal);
-$("modal-close").addEventListener("click", closeDataModal);
-$("data-modal").addEventListener("click", (e) => { if (e.target.id === "data-modal") closeDataModal(); });
-
-async function openDataModal() {
-  if (!batchId) return;
-  $("data-modal").hidden = false;
-  $("modal-table-wrap").innerHTML = `<p class="empty">Loading…</p>`;
-  try {
-    if (!datasetCache) datasetCache = await api(`/batches/${batchId}/data`);
-    renderModalTable(modalRecordType);
-  } catch (e) {
-    $("modal-table-wrap").innerHTML = `<p class="empty">Couldn't load the data: ${e.message}</p>`;
-  }
+async function openPreview(slotId) {
+  document.getElementById(slotId).appendChild($("data-preview-section"));
+  $("data-preview-section").hidden = false;
+  previewRecordType = "payments";
+  previewPage = 0;
+  document.querySelectorAll(".preview-tab").forEach(t => t.classList.toggle("active", t.dataset.record === "payments"));
+  await loadAndRenderPreview();
 }
 
-function closeDataModal() { $("data-modal").hidden = true; }
+$("btn-preview-2").addEventListener("click", async () => {
+  const panel = $("data-preview-section");
+  const isOpen = !panel.hidden && panel.parentElement.id === "preview-slot-results";
+  if (isOpen) {
+    panel.hidden = true;
+    $("btn-preview-2").textContent = "View data";
+    return;
+  }
+  $("btn-preview-2").textContent = "Hide data";
+  await openPreview("preview-slot-results");
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
-document.querySelectorAll(".modal-tab").forEach((tab) => {
+document.querySelectorAll(".preview-tab").forEach((tab) => {
   tab.addEventListener("click", () => {
-    modalRecordType = tab.dataset.record;
-    document.querySelectorAll(".modal-tab").forEach(t => t.classList.toggle("active", t === tab));
-    renderModalTable(modalRecordType);
+    previewRecordType = tab.dataset.record;
+    previewPage = 0;
+    document.querySelectorAll(".preview-tab").forEach(t => t.classList.toggle("active", t === tab));
+    renderPreviewTable();
   });
 });
+
+$("preview-prev").addEventListener("click", () => { previewPage--; renderPreviewTable(); });
+$("preview-next").addEventListener("click", () => { previewPage++; renderPreviewTable(); });
+
+async function loadAndRenderPreview() {
+  if (!batchId) return;
+  $("preview-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">Loading…</p>`;
+  try {
+    if (!datasetCache) datasetCache = await api(`/batches/${batchId}/data`);
+    renderPreviewTable();
+  } catch (e) {
+    $("preview-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">Couldn't load the data: ${e.message}</p>`;
+  }
+}
 
 const RECORD_COLUMNS = {
   payments: [
@@ -732,30 +771,63 @@ const RECORD_COLUMNS = {
   ],
 };
 
-const PREVIEW_ROWS = 8;
+function renderPreviewTable() {
+  const rows = datasetCache[previewRecordType] || [];
+  const cols = RECORD_COLUMNS[previewRecordType];
 
-function renderModalTable(recordType) {
-  const rows = datasetCache[recordType] || [];
-  const cols = RECORD_COLUMNS[recordType];
-  $("modal-title").textContent = `Data preview — ${rows.length.toLocaleString()} records`;
   if (!rows.length) {
-    $("modal-table-wrap").innerHTML = `<p class="empty">No records of this type in this batch.</p>`;
-    $("modal-note").textContent = "";
+    $("preview-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">No records of this type in this batch.</p>`;
+    $("preview-page-info").textContent = "";
+    $("preview-prev").disabled = true;
+    $("preview-next").disabled = true;
     return;
   }
-  const shown = rows.slice(0, PREVIEW_ROWS);
-  $("modal-table-wrap").innerHTML = `
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PREVIEW_PAGE_SIZE));
+  previewPage = Math.min(Math.max(previewPage, 0), totalPages - 1);
+  const start = previewPage * PREVIEW_PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PREVIEW_PAGE_SIZE);
+
+  $("preview-table-wrap").innerHTML = `
     <table>
       <thead><tr>${cols.map(c => `<th>${c.label}</th>`).join("")}</tr></thead>
       <tbody>
-        ${shown.map(r => `<tr>${cols.map(c => `<td class="${c.mono ? "mono" : ""}">${c.fmt ? c.fmt(r[c.key]) : (r[c.key] ?? "")}</td>`).join("")}</tr>`).join("")}
+        ${pageRows.map(r => `<tr>${cols.map(c => `<td class="${c.mono ? "mono" : ""}">${c.fmt ? c.fmt(r[c.key]) : (r[c.key] ?? "")}</td>`).join("")}</tr>`).join("")}
       </tbody>
     </table>
   `;
-  $("modal-note").textContent = rows.length > PREVIEW_ROWS
-    ? `Showing the first ${PREVIEW_ROWS} of ${rows.length.toLocaleString()} records. Download below for the full set.`
-    : "";
+  // Scrolling the table body up to the top of its own scroll box on every
+  // page turn -- otherwise "Next" on a tall table can leave the view
+  // sitting mid-scroll on the new page's rows.
+  $("preview-table-wrap").scrollTop = 0;
+  $("preview-page-info").textContent =
+    `Page ${previewPage + 1} of ${totalPages} — ${rows.length.toLocaleString()} records total`;
+  $("preview-prev").disabled = previewPage === 0;
+  $("preview-next").disabled = previewPage >= totalPages - 1;
 }
+
+// Raw (unformatted) column accessors per record type, for CSV export --
+// separate from RECORD_COLUMNS above, which formats amounts as "₹1,234.56"
+// strings for on-screen display, not a spreadsheet-friendly numeric column.
+const CSV_COLUMNS = {
+  payments: [
+    ["payment_id", (p) => p.id], ["order_id", (p) => p.order_id],
+    ["amount_inr", (p) => (p.amount / 100).toFixed(2)], ["currency", (p) => p.currency],
+    ["method", (p) => p.method], ["captured", (p) => p.captured],
+    ["amount_refunded_inr", (p) => (p.amount_refunded / 100).toFixed(2)],
+    ["customer_id", (p) => p.customer_id],
+  ],
+  settlement_lines: [
+    ["settlement_id", (s) => s.entity_id], ["order_id", (s) => s.order_id],
+    ["payment_id", (s) => s.payment_id], ["amount_inr", (s) => (s.amount / 100).toFixed(2)],
+    ["type", (s) => s.type], ["settled", (s) => s.settled], ["settlement_utr", (s) => s.settlement_utr],
+  ],
+  invoices: [
+    ["invoice_id", (i) => i.id], ["customer_id", (i) => i.customer_id],
+    ["order_id", (i) => i.order_id], ["amount_inr", (i) => (i.amount / 100).toFixed(2)],
+    ["status", (i) => i.status],
+  ],
+};
 
 $("btn-download-json").addEventListener("click", () => {
   if (!datasetCache) return;
@@ -764,16 +836,11 @@ $("btn-download-json").addEventListener("click", () => {
 
 $("btn-download-csv").addEventListener("click", () => {
   if (!datasetCache) return;
-  const rows = datasetCache.payments;
-  const header = ["payment_id", "order_id", "amount_inr", "currency", "method", "captured", "amount_refunded_inr", "customer_id"];
-  const lines = [header.join(",")];
-  rows.forEach(p => {
-    lines.push([
-      p.id, p.order_id, (p.amount / 100).toFixed(2), p.currency, p.method,
-      p.captured, (p.amount_refunded / 100).toFixed(2), p.customer_id,
-    ].map(csvEscape).join(","));
-  });
-  downloadBlob(lines.join("\n"), `tieout-payments-${batchId}.csv`, "text/csv");
+  const rows = datasetCache[previewRecordType] || [];
+  const cols = CSV_COLUMNS[previewRecordType];
+  const lines = [cols.map(([name]) => name).join(",")];
+  rows.forEach((r) => lines.push(cols.map(([, get]) => csvEscape(get(r))).join(",")));
+  downloadBlob(lines.join("\n"), `tieout-${previewRecordType}-${batchId}.csv`, "text/csv");
 });
 
 function csvEscape(v) {
@@ -844,6 +911,8 @@ $("history-body").addEventListener("click", async (e) => {
     datasetCache = null;
     lastRun = data;
     render(data, { viewingHistorical: true, createdAt: cardEl ? cardEl.textContent : createdAt });
+    $("data-preview-section").hidden = true;
+    $("btn-preview-2").textContent = "View data";
     showStage("results");
     switchTab("new");
   } catch (e2) {

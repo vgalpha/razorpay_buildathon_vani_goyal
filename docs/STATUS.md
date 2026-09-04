@@ -548,6 +548,32 @@ verified against https://tieout-lemon.vercel.app directly:
    any point. All 43 tests pass (41 prior + 2 new `list_batches`/backfill
    tests).
 
+5. **Data preview made automatic, no modal.** The user pushed back on the
+   modal-based preview from item 4: on a non-technical user's screen, having
+   to click "Preview & download data" then read it inside a popup was an
+   extra, avoidable step. Changed to: the preview panel (tabs, table,
+   download buttons) now renders automatically, inline on the page, right
+   below the "N transactions generated" card the moment a batch exists — no
+   click needed. On the results page (already dense with metric cards,
+   exceptions, Q&A) it stays behind a "View data" toggle instead of
+   auto-showing, since that page has more competing content; clicking it
+   opens the same panel inline (not a popup) at the top of the results view
+   and smooth-scrolls it into place. Also added real pagination (20 rows/
+   page, Previous/Next, "Page X of Y — N records total") plus a bounded,
+   independently-scrollable table body with a sticky header, so the actual
+   scale of a batch (hundreds of records) is genuinely browsable in place,
+   not just an 8-row taste. Caught and fixed one real correctness bug while
+   at it: the CSV download had been hardcoded to always export payments
+   regardless of which tab (Payments/Settlements/Books) was active — now
+   exports whichever record type is currently showing. Verified live:
+   generate → preview auto-appears with real data, no click → paginate
+   through Payments (12 pages) and Settlements (10 pages), tab switch resets
+   to page 1 → reconcile → preview correctly collapses (no floating leftover
+   panel) → "View data" toggle opens/closes correctly and relabels itself
+   ("View data" ↔ "Hide data") → "start a new run" resets to a clean hero
+   with no stale panel. No console errors at any point. All 43 tests still
+   pass (no backend changes this round).
+
 Also consulted advisor on whether the vanilla-HTML approach itself was
 creating friction for adding features like these — answer: no. Recent
 feature costs (15-60 lines each) show no structural friction; migrating to
