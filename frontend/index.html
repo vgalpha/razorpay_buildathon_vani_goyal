@@ -365,6 +365,8 @@ function renderTable(tableId, data) {
   `).join("");
 }
 
+const EXCEPTIONS_VISIBLE = 3;
+
 function renderExceptions(decisions) {
   const escalated = decisions.filter(d => d.decision === "escalate");
   const el = $("exceptions");
@@ -373,18 +375,30 @@ function renderExceptions(decisions) {
   const byCat = {};
   escalated.forEach(d => { (byCat[d.reason_category] ||= []).push(d); });
   el.innerHTML = Object.entries(byCat).sort().map(([cat, items]) => `
-    <div style="margin-bottom:14px;">
+    <div style="margin-bottom:14px;" data-exc-group="${cat}">
       <div style="font-family:var(--mono); font-size:12px; color:var(--text-dim); margin-bottom:6px;">${cat} (${items.length})</div>
-      ${items.map(d => `
-        <div class="exception-card">
+      ${items.map((d, i) => `
+        <div class="exception-card" ${i >= EXCEPTIONS_VISIBLE ? `hidden data-exc-extra="1"` : ""}>
           <div class="cat">${d.rule}</div>
           <div class="id">${d.case_id}</div>
           <div class="detail">${d.reason_detail}</div>
         </div>
       `).join("")}
+      ${items.length > EXCEPTIONS_VISIBLE ? `<button class="chip" data-exc-toggle="1" data-count="${items.length}">show all ${items.length}</button>` : ""}
     </div>
   `).join("");
 }
+
+$("exceptions").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-exc-toggle]");
+  if (!btn) return;
+  const group = btn.closest("[data-exc-group]");
+  const hiddenCards = group.querySelectorAll("[data-exc-extra]");
+  const expanded = btn.dataset.expanded === "1";
+  hiddenCards.forEach(c => c.hidden = expanded);
+  btn.dataset.expanded = expanded ? "0" : "1";
+  btn.textContent = expanded ? `show all ${btn.dataset.count}` : "show fewer";
+});
 
 const QUICK_QUESTIONS = [
   "what's the match rate?",
