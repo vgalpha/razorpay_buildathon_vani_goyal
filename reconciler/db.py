@@ -91,7 +91,15 @@ def _backfill_summary_columns(engine):
 
 def make_engine(database_url=None):
   url = database_url or os.environ.get("DATABASE_URL", "sqlite:///reconciler.db")
-  engine = create_engine(url, future=True)
+  # pool_pre_ping: Neon (and most serverless Postgres) suspends its compute
+  # after idle and can hand back a stale/closed connection on the first
+  # query after waking -- this makes SQLAlchemy test the connection with a
+  # cheap SELECT 1 before use and transparently reconnect if it's dead,
+  # instead of surfacing that as a request-ending 500. Real symptom seen in
+  # production (GET /batches -> 500) on 2026-09-04; every dataset/run_result
+  # row was independently verified intact, so this was a connection-layer
+  # failure, not corrupted data.
+  engine = create_engine(url, future=True, pool_pre_ping=True)
   metadata.create_all(engine)
   _ensure_summary_columns(engine)
   _backfill_summary_columns(engine)

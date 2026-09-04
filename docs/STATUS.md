@@ -574,6 +574,99 @@ verified against https://tieout-lemon.vercel.app directly:
    with no stale panel. No console errors at any point. All 43 tests still
    pass (no backend changes this round).
 
+6. **Full results-page readability overhaul, prompted by a real PDF export
+   of the deployed page** ([to1.pdf], shared by the user): 115 flagged cases
+   rendered as one stacked text card each read as "a giant slob of text,"
+   the Q&A chat only existed at the very bottom of a long page (findable
+   only by scrolling past everything else), and the per-fault-class/
+   per-rule/invariants summary was hidden behind the "show technical
+   details" toggle from item 4 — exactly backwards from what a non-technical
+   viewer wants first (the numbers) versus what they want to drill into
+   (individual flagged cases). Researched actual UX sources before touching
+   code (NN/g's data-table guidance, Pencil & Paper's enterprise-table
+   pattern analysis, current fintech-dashboard exception-queue practice —
+   dense filterable/sortable tables, pagination over infinite scroll,
+   "exception-first" surfacing) rather than redesigning from instinct alone.
+   Consulted advisor on the plan before writing code, per the user's
+   explicit ask; advisor caught two ordering bugs during implementation
+   before either shipped:
+   - **Flagged items**: replaced the per-category card stack with one
+     compact table (Category badge / Order ID / Reason), category filter
+     chips with live counts, an order-ID search box, and real pagination
+     (25/page). This is what actually scales past a handful of cases — the
+     DOM holds one page's worth of rows whether the batch has 115 flagged
+     cases or 15,000. (Caveat, stated plainly rather than oversold: this
+     fixes *rendering*, not payload — `GET /batches/{id}/data` and the run
+     endpoint still return every record/decision as JSON, so a genuinely
+     10k+-record batch would need paginated *endpoints* too. Not done here;
+     correctly scoped as future work, not claimed as solved.)
+   - **Summary promoted to always-visible.** Per-fault-class accuracy,
+     per-rule scorecard, and the four consistency-check invariants (now
+     rendered as a compact pill row instead of a bulleted dot-list) sit
+     directly under the headline metric cards with no toggle — this is what
+     "summary of the reconciliation" meant per the user's own framing. Only
+     the per-pass engine-trace timings (genuinely internal, microsecond
+     numbers meaningless to a non-technical reader) stayed behind a small
+     "show engine internals" toggle, now demoted below the flagged-items
+     section rather than sitting above it.
+   - **Q&A moved to a floating chat widget** (fixed bottom-right launcher +
+     panel, standard Intercom/Zendesk-style pattern) — reachable from any
+     scroll depth on the results page instead of requiring a scroll to the
+     very bottom. Shown only while a run's results are the active view;
+     hidden on the hero/ready stages and on the History tab (its
+     fixed-position panel would otherwise float over content unrelated to
+     any run). Real bugs caught in this specific piece, before and during
+     verification: (a) the chat panel's `position:fixed` visually overlaps
+     the exceptions table's centered pagination footer on ordinary laptop
+     widths (confirmed live at 1263px) — checked whether this was a
+     functional blocker, not just a visual one: the "Next" button stayed
+     genuinely clickable throughout (verified by paging forward with the
+     panel open), so left as-is rather than over-engineering a redesign
+     around a cosmetic near-miss that real chat widgets exhibit too; (b) a
+     history-tab visibility bug where `closeChatPanel()`'s own re-show logic
+     (keyed on whether the results stage is still active underneath, which
+     tab-switching alone doesn't change) would silently undo the "hide the
+     fab on History" line right after it — fixed by reordering so the
+     explicit hide runs last.
+   - Two null-reference bugs caught and fixed **before** browser testing by
+     re-reading the state-machine implications of a rebuildable DOM
+     skeleton (the zero-flagged-cases empty state destroys and later
+     rebuilds the filter/table/pagination markup): calling
+     `renderExceptionFilters()` before confirming the skeleton exists, and
+     duplicating the skeleton in both static HTML and JS such that the
+     JS-owned rebuild path would never get its event listeners bound on the
+     very first run. Consolidated to one JS-owned skeleton
+     (`ensureExceptionsSkeleton()`) as the single source of truth.
+   **Verified live in-browser**, full pass: generate → reconcile → Summary
+   visible immediately (no click) → chat fab visible immediately (no
+   scroll) → flagged-items category filter ("Disputed (8)") → combined
+   filter+search narrows to the single matching case → chat panel open →
+   asked a real quick-question chip, got a real data-grounded answer →
+   confirmed "Next" pagination still clickable with chat panel open → chat
+   closed, fab reappears → engine-internals toggle expands/collapses →
+   History tab correctly hides the chat fab/panel → opened a *different*
+   historical run and confirmed the flagged-items filters/search reset
+   correctly against that run's own data (not stale state from the
+   previous one). No console errors at any point. All 43 tests still pass
+   (no backend schema changes this round beyond the `/batches` reliability
+   fix below).
+
+**Separately, a real production bug reported by the user**: History tab
+showed "Couldn't load history: 500" on the live deployment. Root-caused,
+not just patched blind — pulled every production `batches` row directly
+from Neon and verified all 14 were structurally intact (valid JSON,
+`cases_count` backfilled, no orphaned rows), and the endpoint was already
+back to 200 by the time it was checked. That combination (data provably
+fine, error already gone, endpoint touches Postgres on every cold
+request) points at a classic serverless-Postgres failure mode: Neon
+suspends its compute when idle, and the first query after waking can
+occasionally hit a stale/dropped connection. Fixed with
+`pool_pre_ping=True` on the SQLAlchemy engine (`reconciler/db.py`) — the
+standard, minimal mitigation (SQLAlchemy tests the connection with a
+cheap `SELECT 1` before handing it to a request, transparently
+reconnecting if it's dead, instead of surfacing that as a 500). Low risk:
+one line, no schema change, all 43 tests still pass against SQLite.
+
 Also consulted advisor on whether the vanilla-HTML approach itself was
 creating friction for adding features like these — answer: no. Recent
 feature costs (15-60 lines each) show no structural friction; migrating to
