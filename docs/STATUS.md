@@ -764,6 +764,66 @@ README only). Committed as `a5f82bf` and deployed to production
 (`https://tieout-lemon.vercel.app`); `curl` against `/batches` and the
 served HTML confirmed the deploy went live.
 
+### Brand-mark navigation shortcut + nav-tab contrast fix (2026-09-04)
+
+Two small reported issues: the TieOut logo/name in the header wasn't
+clickable ("should take us to the new run page"), and the New run/History
+nav pills' selected and hover states were "so dull it's hard to even see
+what's selected". Checked the actual colors: active background was
+`--panel-3` (`#1e232b`) against the tab strip's own `--panel-2`
+(`#191d23`) — two near-identical dark shades, and hover only changed text
+color with no background change at all.
+
+Brand mark/name now behaves like clicking the "New run" nav pill itself —
+deliberately *not* the same as "Start a new run" (which resets the batch);
+clicking the logo mid-flow (e.g. from "ready" or "results" stage) returns
+to whatever's currently in the New Run tab rather than discarding it.
+Nav-tab active state now uses the same solid accent-blue treatment as
+filter chips elsewhere in the UI (`background: var(--accent); color: #fff`
+instead of a barely-different dark shade); hover gets its own visible
+background change independent of active state.
+
+Committed as `be90711`, deployed, verified live (brand click preserves
+in-progress batch state when navigating away and back; active-tab pill is
+now clearly a solid accent color in a zoomed screenshot).
+
+### Per-category "what to do next" hints (2026-09-04)
+
+Follow-up explicitly queued from the drill-down work above, once the user
+had seen it land: the drill-down shows *what the real numbers are*, but not
+*what to actually do about it*. Added a `CATEGORY_HINTS` map in the
+frontend keyed by `reason_category`, rendered as a highlighted "Next step"
+block above the source-record cards in the same expand-on-click panel.
+
+Scoped to the 11 categories that can actually reach the flagged/quarantine
+sections — the 10 `escalate` reason_categories the engine assigns
+(`amount_mismatch`, `multi_payment_ambiguous`, `missing_settlement`,
+`duplicate_settlement`, `refund_mismatch`, `disputed`, `high_value_gate`,
+`books_duplicate_invoice_collision`, `books_missing_invoice`,
+`books_amount_mismatch`) plus `quarantine` — verified against the literal
+`Decision(...)` call sites in `engine.py`, not just taxonomy.py's fault
+list. The 4 `auto_close`-only fault types (`clean_match`, `rounding_noise`,
+`refund_clean`, `books_clean_match`) never surface in either section, so
+they get no entry — a hint there would be dead code. `international_fx`
+has no distinct `reason_category` of its own (the engine folds it into
+`amount_mismatch`, which is the whole disclosed limitation); its hint text
+lives inside the `amount_mismatch` entry instead, which turned out to be a
+better home for that disclosure than the static banner ever was — it shows
+up in context, on the specific rows a user is actually investigating,
+instead of as prose at the bottom of the page nobody reads mid-task.
+
+Caught and fixed one real bug while verifying live, not in code review:
+a quarantined record with a genuinely non-numeric `amount` (the
+malformation itself) rendered as literal `₹NaN` in the drill-down card.
+`money()` now checks `Number.isFinite` and shows `"(invalid amount)"`
+instead — a fix that helps everywhere the formatter is used, not just
+quarantine.
+
+Verified live for both an `escalate` category (Disputed) and quarantine;
+confirmed hint text renders above the source records as intended. All 43
+backend tests pass (frontend-only change). Committed as `c46cac2`,
+deployed, confirmed live via curl.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
