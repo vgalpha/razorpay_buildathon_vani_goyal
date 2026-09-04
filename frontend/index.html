@@ -44,7 +44,13 @@
     padding: 14px 24px; border-bottom: 1px solid var(--border);
     background: rgba(11, 13, 16, 0.85); backdrop-filter: blur(10px);
   }
-  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border-radius: 8px; padding: 4px 6px; margin: -4px -6px;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .brand:hover { background: var(--panel-2); }
+  .brand:active { opacity: 0.85; }
   .brand-mark {
     width: 28px; height: 28px; border-radius: 8px;
     background: linear-gradient(135deg, var(--accent), #7c5bee);
@@ -60,9 +66,10 @@
     cursor: pointer; transition: background 0.15s, color 0.15s;
     display: flex; align-items: center; gap: 6px;
   }
-  .nav-tab:hover { color: var(--text); }
-  .nav-tab.active { background: var(--panel-3); color: var(--text); }
+  .nav-tab:hover { color: var(--text); background: var(--panel-3); }
+  .nav-tab.active, .nav-tab.active:hover { background: var(--accent); color: #fff; }
   .nav-tab svg { width: 14px; height: 14px; opacity: 0.8; }
+  .nav-tab.active svg { opacity: 1; }
 
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
@@ -353,7 +360,7 @@
 <body>
 
 <nav>
-  <div class="brand">
+  <div class="brand" id="brand" role="button" tabindex="0" aria-label="Go to new run">
     <div class="brand-mark">T</div>
     <span class="brand-name">TieOut</span>
     <span class="brand-sub">payments &middot; settlements &middot; books</span>
@@ -553,6 +560,14 @@ let lastRun = null;
 // -------------------------------------------------------------- nav tabs --
 document.querySelectorAll(".nav-tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+});
+
+// Brand mark/name in the header is a shortcut to the "New run" tab -- same
+// behavior as clicking the nav pill itself (not a full reset like "Start a
+// new run", which discards the current batch).
+$("brand").addEventListener("click", () => switchTab("new"));
+$("brand").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); switchTab("new"); }
 });
 
 // Kept separate from which panel is visible: viewing a past run's results
