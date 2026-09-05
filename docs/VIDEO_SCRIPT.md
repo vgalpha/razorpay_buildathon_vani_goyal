@@ -88,7 +88,7 @@ each of the 5 cards before moving to Part 2.
 | `card2_problem_2.jpg` | `card2.mp4` | *"Most companies still check that by hand. One missed mismatch is real money, quietly gone."* |
 | `card3_tieout_intro.jpg` | `card3.mp4` | *"Presenting TieOut. It checks your payments against what settled, and what the books say — closes what it's sure about, automatically, and asks a human about everything else. Let's see it in action."* |
 | `card4_failure_recovery.jpg` | `card4.mp4` | *"What broke — and how we found out. Here's a real one. The History page felt slow, even with almost no history in it. The obvious guess was a heavy database query — so we read the actual query and checked the fetch pattern, and that guess was wrong: the query was already lean, no missing pagination, nothing pulling more data than it needed. The real cause was upstream of the query entirely — every server cold start was silently re-running a full schema-migration check before answering anything at all, every single time. Fixed by checking once instead of blindly retrying it, and wrote a test that proves it still repairs a genuinely broken database when one actually shows up. That's the habit this project runs on — check before you guess, then fix the thing that's actually wrong, not the thing that looked wrong."* |
-| `card5_close.jpg` | `card5.mp4` | *"Order data can be pulled live from Razorpay's actual test-mode API; payment and settlement data is synthesized but built field-for-field to match Razorpay's documented schema, including the real order_id-only linkage on payment-type settlement lines that makes the multi-payment case genuinely ambiguous. This is the judgment — knowing when not to act — that the role is asking to see."* |
+| `card5_close.jpg` | `card5.mp4` | *"None of this is invented. Order data comes live from Razorpay's actual test-mode API. Payment and settlement data is built field-for-field to match their real documented schema — including the exact quirk that makes the multi-payment case genuinely ambiguous, not staged for a demo. Knowing when not to act — that's the judgment this role is actually asking to see."* |
 
 Card 4's line is long — it's fine to read it a little slower, or pause
 briefly in the middle. Don't rush it.
@@ -143,9 +143,9 @@ this batch" section).
 
 **4.** Click **"Compare against expected outcomes ▸."** Click the checkbox
 **"Show mismatches only"** once to turn it off.
-**Say:** *"No mismatches — every case matched its expected outcome. If
-anything had disagreed with the answer key, this is exactly where you'd
-see which case, and why."*
+**Say:** *"Zero mismatches — every case matched its expected outcome. And
+if one hadn't, you'd see exactly which case, and why, right here — this
+isn't a black box, it's checkable."*
 
 **5.** Scroll down to the section titled **"What needs a human"**, then
 **"Flagged items — with the actual reason."** You'll see a list of cards.
@@ -172,9 +172,7 @@ generate, that's normal, just use whichever real card you find):
 
 **6.** Scroll further down to **"Per-fault-class accuracy"** and pause on
 it briefly.
-**Say:** *"International payments settled in INR after conversion aren't
-modeled. The engine correctly refuses to auto-close these — it never
-mis-closes one — but it can only say the amount doesn't match, not why."*
+**Say:** *"Sixteen fault types. Every single one at 100%."*
 
 **7.** Click the **"Ask a question"** button (either the small round one
 in the bottom-right corner, or the "Ask a question about this run" button
@@ -186,10 +184,10 @@ near the top). Click the chip that says **"what's the biggest exception?"**
 **"what's your favorite color?"** and press Enter or click "Ask."
 **Wait quietly again — this one can take 20-25 seconds.** Once the answer
 appears, then **say:** *"Plain math decides every match. AI only ever
-explains a decision — it can never make one. There's a pluggable LLM layer
-under this — Anthropic, OpenAI, Gemini, or any OpenAI-compatible host —
-and even when one's configured, it only ever phrases an already-computed
-fact, or answers strictly from this run's aggregate numbers, labeled as
+explains a decision — it can never make one. Swap in Anthropic, OpenAI,
+Gemini, whatever you want — it doesn't matter which, because even when
+one's configured, it only ever phrases an already-computed fact, or
+answers strictly from this run's aggregate numbers, labeled as
 AI-generated when it does."*
 
 **9. Stop recording** — press **Windows key + Alt + R** again. Open
