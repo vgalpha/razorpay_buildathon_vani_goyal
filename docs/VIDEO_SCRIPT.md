@@ -122,14 +122,18 @@ still picture, it's the live Chrome window.
 
 **Step 1**
 - **Action:** Click **"Customize this batch (optional)"** to open it —
-  it's the small link right under the "Generate sample data" button. Click
-  into the box labeled **total-transactions** and type **150**. Leave
-  every other box empty. Click **"Generate sample data."** Wait for it to
-  finish loading. (This one click both proves the customize option is real
-  and produces the actual batch the rest of this video uses — no need to
-  generate twice or start over.)
-- **Say:** *"Every one of 16 fault types is named and countable — not a
-  black box."*
+  it's the small link right under the "Generate sample data" button. The
+  panel opens showing a scrollable list — each fault type by name, with a
+  plain-English description and a count field. **Scroll down slowly
+  through this list for 3-4 seconds while you say the line below** —
+  that's what the line is actually describing, don't skip past it. Then
+  scroll back up, click into the box labeled **total-transactions**, type
+  **150**, leave every other box empty, and click **"Generate sample
+  data."** Wait for it to finish loading. (This one click both proves the
+  customize option is real and produces the actual batch the rest of this
+  video uses — no need to generate twice or start over.)
+- **Say** (while scrolling through the fault-type list): *"Every one of 16
+  fault types is named and countable — not a black box."*
 
 **Step 2**
 - **Action:** Click **"Reconcile now."** Wait for the four number-cards to
@@ -144,7 +148,8 @@ still picture, it's the live Chrome window.
 **Step 3**
 - **Action:** Click the **"Expected outcomes"** tab (it's inside the
   "What's in this batch" section).
-- **Say:** *(nothing — just let it be visible on screen for a moment)*
+- **Say:** *"This is the answer key itself — every case's correct outcome,
+  sitting right here before we've even run anything."*
 
 **Step 4**
 - **Action:** Click **"Compare against expected outcomes ▸."** Click the
