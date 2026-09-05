@@ -6,6 +6,7 @@ reads within one open connection.
 """
 
 import os
+import sqlite3
 import tempfile
 import unittest
 
@@ -80,6 +81,29 @@ class TestBatchPersistence(unittest.TestCase):
     dataset = generate_dataset(seed=1)
     db.insert_batch(engine, "b3", 1, "synthetic", serialize.dataset_to_dict(dataset))
     self.assertIsNotNone(db.fetch_batch(engine, "b3"))
+
+  def test_ensure_summary_columns_still_migrates_a_genuinely_legacy_table(self):
+    # Simulates a table created before the summary columns existed --
+    # make_engine's column-introspection fast path (see db.py's
+    # _ensure_summary_columns) must still detect they're missing and add
+    # them, not just skip the ALTERs because a table already exists.
+    conn = sqlite3.connect(self.db_path)
+    conn.execute("""
+      CREATE TABLE batches (
+        id TEXT PRIMARY KEY, seed INTEGER NOT NULL, order_mode TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL, dataset_json TEXT NOT NULL, run_result_json TEXT
+      )
+    """)
+    conn.commit()
+    conn.close()
+
+    engine = db.make_engine(self.url)
+    dataset = generate_dataset(seed=1)
+    db.insert_batch(engine, "legacy", 1, "synthetic", serialize.dataset_to_dict(dataset))
+    stored = db.fetch_batch(engine, "legacy")
+    self.assertIsNotNone(stored)
+    self.assertEqual(stored["dataset"]["ground_truth"][0]["case_id"],
+                      dataset.ground_truth[0].case_id)
 
 
 if __name__ == "__main__":

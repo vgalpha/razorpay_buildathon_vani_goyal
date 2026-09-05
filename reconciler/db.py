@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
   Column, DateTime, Float, Integer, MetaData, String, Table, Text,
-  create_engine, select, text,
+  create_engine, inspect, select, text,
 )
 
 metadata = MetaData()
@@ -54,12 +54,19 @@ _SUMMARY_COLUMNS = [
 
 
 def _ensure_summary_columns(engine):
-  for name, sql_type in _SUMMARY_COLUMNS:
+  # A single column-introspection round trip instead of 6 blind ALTER
+  # attempts on every cold start -- both this new table's own Table()
+  # definition above and any already-migrated table already have every
+  # summary column, so `missing` is empty (and this is a no-op) in every
+  # case except a genuinely legacy, not-yet-migrated table.
+  existing = {col["name"] for col in inspect(engine).get_columns("batches")}
+  missing = [(name, sql_type) for name, sql_type in _SUMMARY_COLUMNS if name not in existing]
+  for name, sql_type in missing:
     try:
       with engine.begin() as conn:
         conn.execute(text(f"ALTER TABLE batches ADD COLUMN {name} {sql_type}"))
     except Exception:
-      pass  # column already exists
+      pass  # column already exists (e.g. added concurrently by another cold start)
 
 
 def _backfill_summary_columns(engine):

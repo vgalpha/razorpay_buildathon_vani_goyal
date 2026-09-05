@@ -454,7 +454,10 @@
       </div>
       <h2 id="ready-headline">Data is ready</h2>
       <p id="ready-subtext">Here's what was generated &mdash; go straight to reconciling it, or look through the records below first.</p>
-      <button id="btn-run" class="btn primary">Reconcile now</button>
+      <div class="btn-row" style="justify-content:center;">
+        <button id="btn-run" class="btn primary">Reconcile now</button>
+        <button id="btn-discard-ready" class="btn small">Discard &amp; start over</button>
+      </div>
     </div>
     <div id="preview-slot-ready"></div>
 
@@ -809,6 +812,7 @@ function resetToNewRunHero() {
   showStage("hero");
 }
 $("btn-start-over").addEventListener("click", resetToNewRunHero);
+$("btn-discard-ready").addEventListener("click", resetToNewRunHero);
 
 // -------------------------------------------------------------- reconcile --
 $("btn-run").addEventListener("click", runReconciliation);
