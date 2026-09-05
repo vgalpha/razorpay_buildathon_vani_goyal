@@ -1180,6 +1180,38 @@ per card and the demo's click/say sequence are unchanged from the prior
 version's content — this was a structural/format rewrite, not a rewrite of
 what's actually said.
 
+## Card 4/5 rewritten again; card font sizes fixed (2026-09-05)
+
+Two more rounds of feedback on the card content and the images
+themselves:
+
+**Card 4's content changed a second time.** Asked directly whether a real
+bug existed in the core matching logic itself (not tests, UI, infra, or
+the Gemini integration) — checked git history (`git log` on
+`engine.py`/`generate.py`/`evaluate.py`) and every bug/fix mention in this
+file, and none exists; every real bug this project hit was in the layers
+around the core engine, not the comparison rules themselves, consistent
+with `engine.py` having been built test-first against `taxonomy.py`'s
+spec rather than iteratively debugged. Declined to fabricate a fake
+incident for this reason (explicitly, when asked to) — an invented story
+that unravels under a follow-up question in the "architecture explanation"
+round is a worse outcome than a true story that's slightly less dramatic.
+Landed on a different, honest framing instead: "what usually breaks in
+this class of system, and why this one doesn't" — real domain knowledge
+(floating-point money bugs, one-payment-per-order assumptions) paired with
+this engine's actual real defenses (integer paise, the multi-payment
+abstention). This is not a "what broke" story the way the buildathon's own
+phrasing implies, and `VIDEO_SCRIPT.md`'s Notes section says so plainly,
+so nobody's caught flat-footed if asked about it directly.
+
+**Card visuals fixed**: the caption/subtitle text on cards 3, 4, and 5 was
+too small relative to the giant bold headline (1.7-2vw vs the headline's
+4.8-5.6vw) — bumped to 2.3-2.7vw across all three. Card 5's title ("Not
+invented. Built on it.") didn't stand on its own without the subtitle
+explaining it — changed to "Nothing here is faked," which does. All three
+images regenerated (same HTML/CSS-in-Chrome-screenshot method as the
+original 5) and replaced in `video_cards/`.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:

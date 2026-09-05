@@ -87,8 +87,8 @@ each of the 5 cards before moving to Part 2.
 | `card1_problem_1.jpg` | `card1.mp4` | *"A customer pays. The gateway settles it. The books record it. Three numbers — that are supposed to be the same number."* |
 | `card2_problem_2.jpg` | `card2.mp4` | *"Most companies still check that by hand. One missed mismatch is real money, quietly gone."* |
 | `card3_tieout_intro.jpg` | `card3.mp4` | *"Presenting TieOut. It checks your payments against what settled, and what the books say — closes what it's sure about, automatically, and asks a human about everything else. Let's see it in action."* |
-| `card4_failure_recovery.jpg` | `card4.mp4` | *"What broke — and how we found out. Here's a real one, from today. We wired a live AI model into the product's chat, and it broke instantly — silently. Every question just quietly fell back to the safe default, like nothing was even connected. The easy guess was a bad API key. It wasn't. We went straight to the provider's own API instead of guessing, and found two real bugs stacked on each other: the model we'd defaulted to had just been deprecated, and its replacement was so slow out of the box — over twenty seconds a call — that every request was silently timing out before an answer could ever come back. Found both, fixed both, verified live against the real API before it ever touched production again. That's the standard here: when something quietly falls back to safe, don't assume it's fine — go find out why it's hiding."* |
-| `card5_close.jpg` | `card5.mp4` | *"None of this is invented. Order data comes live from Razorpay's actual test-mode API. Payment and settlement data is built field-for-field to match their real documented schema — including the exact quirk that makes the multi-payment case genuinely ambiguous, not staged for a demo. Knowing when not to act — that's the judgment this role is actually asking to see."* |
+| `card4_failure_recovery.jpg` | `card4.mp4` | *"What usually breaks — and why this doesn't. Most reconciliation engines get built the fast way: compare amounts as decimals, assume one payment per order, auto-close anything that looks clean. Every one of those is a real, common failure mode. Floating-point comparison quietly drifts. Assuming one payment per order means a real multi-payment order gets silently attributed to the wrong one. This engine does neither. Amounts are integer paise, never floats, so every comparison is exact — and a multi-payment order isn't guessed at, it's flagged, because Razorpay's own settlement schema genuinely can't say which payment a line belongs to. None of this was found by breaking in production. It was built test-first, one rule at a time, against a written spec — with an AI coding agent enforcing that discipline case by case, instead of shipping first and debugging later."* |
+| `card5_close.jpg` | `card5.mp4` | *"Nothing here is faked. Order data comes live from Razorpay's own test API. Payments and settlements are built field-for-field to match their real documented schema — that's where the multi-payment ambiguity you just saw actually comes from: a real quirk in their data, not something made up to look impressive. Knowing when not to act — that's the judgment this role is actually asking to see."* |
 
 Card 4's line is long — it's fine to read it a little slower, or pause
 briefly in the middle. Don't rush it.
@@ -296,6 +296,18 @@ reach its later pages, and follow whatever it says instead if it differs.
   and 8 in Part 2 take 10-25 seconds instead of being instant, and why
   step 8's answer is a real generated sentence rather than a canned "I
   don't know" message.
+- **Card 4 is deliberately framed as "what usually goes wrong in this
+  class of system," not a specific incident.** No genuine bug was ever
+  found in the core matching logic itself (checked directly against git
+  history and this project's own build log before writing it this way) —
+  every real bug this project hit was in the surrounding layers (tests,
+  UI, infra, the Gemini integration), not the comparison rules. The
+  content is real domain knowledge (floating-point money bugs and
+  one-payment-per-order assumptions are genuine, common failure modes)
+  and the claims about this specific engine (integer paise, the
+  multi-payment abstention) are real and verifiable — it's just not a
+  "here's what broke" story the way the buildathon's own phrasing
+  ("what broke at 2 AM") implies. Know that distinction if asked about it.
 - For the full reasoning behind every choice in this script (why these
   specific numbers, why cards instead of just narration, why the failure
   story is what it is), see `docs/STATUS.md` — this doc is intentionally
