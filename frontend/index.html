@@ -243,6 +243,7 @@
   #qa-log { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; overflow-y: auto; }
   .qa-q { align-self: flex-end; background: var(--accent); color: #fff; padding: 8px 12px; border-radius: 10px 10px 2px 10px; max-width: 85%; font-size: 13px; }
   .qa-a { align-self: flex-start; background: var(--panel-2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px 10px 10px 2px; max-width: 85%; font-size: 13px; line-height: 1.5; }
+  .qa-source { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); margin-bottom: 4px; }
   #qa-input-row { display: flex; gap: 8px; }
   #qa-input { flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-family: var(--sans); font-size: 13.5px; }
   #qa-input:focus { outline: none; border-color: var(--accent); }
@@ -1411,20 +1412,31 @@ $("qa-input").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("qa-send").click();
 });
 
+const _escapeHtmlEl = document.createElement("div");
+function escapeHtml(s) {
+  _escapeHtmlEl.textContent = s;
+  return _escapeHtmlEl.innerHTML;
+}
+
 async function askQuestion(question) {
   if (!batchId || !lastRun) { return; }
   const log = $("qa-log");
   const body = $("chat-panel-body"); // the actual scrolling container -- #qa-log itself has no bounded height
-  log.insertAdjacentHTML("beforeend", `<div class="qa-q">${question}</div>`);
+  log.insertAdjacentHTML("beforeend", `<div class="qa-q">${escapeHtml(question)}</div>`);
   body.scrollTop = body.scrollHeight;
   try {
     const data = await api(`/batches/${batchId}/ask`, {
       method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ question }),
     });
-    log.insertAdjacentHTML("beforeend", `<div class="qa-a">${data.answer}</div>`);
+    // source "llm" means this specific answer is freshly LLM-generated text
+    // (not one of the fixed templates below), so it's labeled -- same
+    // "disclosed on purpose" principle used everywhere else in this project.
+    const badge = data.source === "llm"
+      ? `<div class="qa-source">Answered by AI (not a fixed template) -- see README for what this can and can't do.</div>` : "";
+    log.insertAdjacentHTML("beforeend", `<div class="qa-a">${badge}${escapeHtml(data.answer)}</div>`);
   } catch (e) {
-    log.insertAdjacentHTML("beforeend", `<div class="qa-a">error: ${e.message}</div>`);
+    log.insertAdjacentHTML("beforeend", `<div class="qa-a">error: ${escapeHtml(e.message)}</div>`);
   }
   body.scrollTop = body.scrollHeight;
 }

@@ -144,13 +144,24 @@ competitive pressure, not feature-chasing.
 
 ## Explainer notes (`reconciler/notes.py`)
 
-Pluggable: if an LLM API key is configured, call it to write the
-human-readable note for an escalated record, citing the specific fields
-examined. If no key is present, fall back to a template-based note so the
-whole pipeline still runs end-to-end. Never let this layer touch the
-decision.
+Pluggable: if an LLM provider is configured (see `reconciler/llm.py` below),
+call it to write the human-readable note for an escalated record, citing the
+specific fields examined. If none is configured, fall back to a
+template-based note so the whole pipeline still runs end-to-end. Never let
+this layer touch the decision.
 
-## Q&A layer (to be added, step 3 in build order)
+## LLM provider layer (`reconciler/llm.py`)
+
+One small client shared by `notes.py` and `qa.py`, so neither has to know
+which provider is actually configured. `LLM_PROVIDER` env var selects
+`anthropic` / `openai` / `gemini` / `openai_compatible` (any host that speaks
+the OpenAI chat-completions wire format — Groq, Together, OpenRouter, a local
+Ollama — via `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`), or it's auto-detected
+from whichever of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` is
+set. This module only ever makes the network call and raises on failure —
+the "phrase, never decide" rule is enforced by its two callers, not by it.
+
+## Q&A layer (`reconciler/qa.py`)
 
 Same principle as notes: a deterministic planner maps a question to an
 intent against already-computed metrics/audit log (match rate, biggest
@@ -158,7 +169,11 @@ exception, why was X escalated, throughput) and only the phrasing goes
 through the LLM. Canned quick-question chips for the demo, matching the
 "ask the ledger" pattern that's clearly effective in REKON's UI — this
 specific pattern (deterministic-compute, LLM-phrase-only) is one we already
-believe in, not something copied wholesale.
+believe in, not something copied wholesale. The one exception: a question
+matching none of the fixed intents falls through to a free-form LLM answer
+scoped to the run's aggregate summary only (never a raw record), labeled in
+the UI as LLM-generated rather than blended in silently like the templated
+answers' cosmetic phrasing is.
 
 ## Eval (`reconciler/evaluate.py`)
 

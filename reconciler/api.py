@@ -215,5 +215,5 @@ def ask_batch(batch_id: str, req: AskRequest):
     raise HTTPException(status_code=400, detail="run the batch before asking questions")
   run, ev = serialize.run_from_dict(batch["run_result"])
   dataset = serialize.dataset_from_dict(batch["dataset"])
-  answer = qa_module.answer(req.question, run, ev, dataset.payments)
-  return {"question": req.question, "answer": answer}
+  answer, source = qa_module.answer_with_source(req.question, run, ev, dataset.payments)
+  return {"question": req.question, "answer": answer, "source": source}

@@ -176,6 +176,47 @@ class TestNotesCiteRealFields(unittest.TestCase):
     self.assertTrue(note.strip())
 
 
+class TestAnswerWithSource(unittest.TestCase):
+  """answer_with_source() is the entry point api.py actually calls -- it
+  must keep answer()'s exact text for every recognized intent (source
+  "template"), and only mark a response "llm" when the free-form fallback
+  actually produced one."""
+
+  @classmethod
+  def setUpClass(cls):
+    cls.payments, cls.recon_run, cls.ev = _build_scenario()
+
+  def setUp(self):
+    self._saved = {
+      k: os.environ.pop(k, None)
+      for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "LLM_PROVIDER")
+    }
+
+  def tearDown(self):
+    for k, v in self._saved.items():
+      if v is not None:
+        os.environ[k] = v
+
+  def test_recognized_intent_is_labeled_template(self):
+    text, source = qa.answer_with_source("what's the match rate?", self.recon_run, self.ev)
+    self.assertEqual(source, "template")
+    self.assertEqual(text, qa.answer("what's the match rate?", self.recon_run, self.ev))
+
+  def test_unrecognized_question_with_no_llm_configured_is_labeled_template(self):
+    text, source = qa.answer_with_source("what's your favorite color?", self.recon_run, self.ev)
+    self.assertEqual(source, "template")
+    self.assertIn("canned answer", text)
+
+  def test_unrecognized_question_falls_back_to_template_when_llm_call_fails(self):
+    # A fake key means an LLM IS configured, so the free-form path is
+    # attempted, but the network call fails -- must still degrade cleanly
+    # to the same static message, not raise or hang the endpoint.
+    os.environ["ANTHROPIC_API_KEY"] = "sk-ant-fake-key-for-testing-only"
+    text, source = qa.answer_with_source("what's your favorite color?", self.recon_run, self.ev)
+    self.assertEqual(source, "template")
+    self.assertIn("canned answer", text)
+
+
 class TestLLMCallPathsAreReachable(unittest.TestCase):
   """Confirms the LLM-present branch runs its request-building code without
   raising, and still degrades to the template on failure -- this is run

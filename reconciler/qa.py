@@ -3,16 +3,25 @@
 Every answer is computed from real data by plain Python first; only the
 final phrasing goes through notes.rephrase (template by default, optional
 LLM polish, never the source of a fact). Intent matching is a small fixed
-set of keyword/pattern checks -- there is no free-form reasoning here on
-purpose, matching the same "deterministic computes, LLM only phrases"
-principle used throughout this project.
+set of keyword/pattern checks -- there is no free-form reasoning for a
+recognized intent, matching the same "deterministic computes, LLM only
+phrases" principle used throughout this project.
+
+The one exception is an unrecognized question: if an LLM provider is
+configured (see llm.py), _llm_fallback below answers it directly instead of
+the static "I don't have a canned answer" message -- but only from the
+already-computed aggregate summary (never raw payment/settlement/invoice
+records), and the caller marks that answer's source as "llm" so the UI can
+disclose it, rather than letting it blend in with an already-true templated
+fact the way notes.rephrase's polish deliberately does.
 """
 
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .engine import Decision, ReconciliationRun
 from .evaluate import EvalReport
+from .llm import call_llm, is_configured
 from .notes import generate_note, rephrase
 from .schema import Payment
 
@@ -109,21 +118,74 @@ def _answer_abstention(run: ReconciliationRun) -> str:
     "amount of certainty would let it safely pick one.")
 
 
-def answer(question: str, run: ReconciliationRun, ev: EvalReport,
-           payments: Optional[List[Payment]] = None) -> str:
+def _llm_fallback(question: str, run: ReconciliationRun,
+                   ev: EvalReport) -> Optional[str]:
+  """Answers a question that matched none of the fixed intents above, using
+  only the aggregate run/eval summary -- never a raw payment, settlement, or
+  invoice record. Returns None (never raises) on missing config or any
+  failure, so the caller always has the static fallback to use instead."""
+  if not is_configured():
+    return None
+  by_cat: Dict[str, int] = {}
+  for d in run.decisions:
+    by_cat[d.reason_category] = by_cat.get(d.reason_category, 0) + 1
+  summary = (
+    f"total_cases={ev.total_cases}, "
+    f"overall_accuracy={ev.overall_accuracy*100:.1f}%, "
+    f"false_auto_close_rate={ev.false_auto_close_rate*100:.2f}%, "
+    f"auto_close_precision={ev.auto_close_precision*100:.1f}%, "
+    f"auto_close_recall={ev.auto_close_recall*100:.1f}%, "
+    f"throughput_per_sec={ev.throughput_per_sec:,.0f}, "
+    f"decision_counts_by_reason_category={by_cat}")
+  prompt = (
+    "You are answering a question about one already-completed payment "
+    "reconciliation run, for a finance-ops reviewer. You are given only the "
+    "aggregate summary numbers below -- you have no access to individual "
+    "payment, settlement, or invoice records, and must never invent one. If "
+    "the question needs a fact not in this summary (e.g. a specific case id "
+    "or a raw record), say plainly that you don't have that level of detail "
+    "here and suggest checking the Exceptions / drill-down view instead. "
+    "Never state a specific number that isn't in the summary below. Answer "
+    "in 1-3 plain sentences, no preamble.\n\n"
+    f"Run summary: {summary}\n\nQuestion: {question}")
+  try:
+    result = call_llm(prompt).strip()
+    return result or None
+  except Exception:
+    return None
+
+
+def _route(question: str, run: ReconciliationRun, ev: EvalReport,
+           payments: Optional[List[Payment]] = None) -> Tuple[str, str]:
   q = question.lower()
   if "match rate" in q or "accuracy" in q:
-    return _answer_match_rate(ev)
+    return _answer_match_rate(ev), "template"
   if "why" in q and _ID_PATTERN.search(question):
-    return _answer_why(question, run)
+    return _answer_why(question, run), "template"
   if "fast" in q or "throughput" in q or "how long" in q:
-    return _answer_throughput(ev)
+    return _answer_throughput(ev), "template"
   if "biggest" in q or "largest" in q:
-    return _answer_biggest_exception(run, payments or [])
+    return _answer_biggest_exception(run, payments or []), "template"
   if "refuse" in q or "abstain" in q or "won't guess" in q or "never guess" in q:
-    return _answer_abstention(run)
+    return _answer_abstention(run), "template"
   if "broke" in q or "exception" in q:
-    return _answer_exceptions(run)
+    return _answer_exceptions(run), "template"
+  llm_answer = _llm_fallback(question, run, ev)
+  if llm_answer:
+    return llm_answer, "llm"
   return ("I don't have a canned answer for that yet -- try asking about "
           "match rate, exceptions, throughput, the biggest exception, what "
-          "it refuses to guess on, or a specific case id.")
+          "it refuses to guess on, or a specific case id."), "template"
+
+
+def answer(question: str, run: ReconciliationRun, ev: EvalReport,
+           payments: Optional[List[Payment]] = None) -> str:
+  return _route(question, run, ev, payments)[0]
+
+
+def answer_with_source(question: str, run: ReconciliationRun, ev: EvalReport,
+                        payments: Optional[List[Payment]] = None) -> Tuple[str, str]:
+  """Same as answer(), but also returns "template" or "llm" so the caller
+  (the API layer) can disclose when an answer was freshly LLM-generated
+  rather than one of the fixed templates above."""
+  return _route(question, run, ev, payments)

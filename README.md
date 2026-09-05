@@ -63,13 +63,32 @@ Then open `frontend/index.html` directly in a browser (it talks to
 ambiguous-case abstention is a Python comparison in `reconciler/engine.py`,
 unit-tested against a fault taxonomy (`reconciler/taxonomy.py`) that is the
 single source of truth for what's correct — an LLM never sees a payment or
-settlement record, and never picks between two candidates. The one place an
-LLM is *allowed* in (`reconciler/notes.py`) is optional cosmetic phrasing of
-an already-decided, already-true sentence: it can only rephrase a fact, never
-add one or change a decision. It requires `ANTHROPIC_API_KEY` or
-`OPENAI_API_KEY` to be set; **neither is set in this deployment**, so the
-live app runs on the deterministic template path with zero LLM calls, and
-falls back to that template automatically if the call ever failed anyway.
+settlement record, and never picks between two candidates. There are exactly
+two places an LLM is *allowed* in, both read-only and off the decision path:
+
+- `reconciler/notes.py` — optional cosmetic phrasing of an already-decided,
+  already-true sentence. It can only rephrase a fact, never add one or
+  change a decision.
+- `reconciler/qa.py`'s chat answers — every recognized question (match rate,
+  exceptions, throughput, a specific case id, …) is answered by a fixed
+  Python template, same as above. Only a genuinely unrecognized question
+  falls through to a free-form LLM answer, and even then it's given nothing
+  but the run's aggregate summary numbers — never a raw payment, settlement,
+  or invoice record — and is instructed to say "I don't know, check the
+  Exceptions view" rather than guess. The chat panel labels this case
+  explicitly ("Answered by AI, not a fixed template") since it's the one
+  spot generating new sentences rather than phrasing an already-true one.
+
+Both paths go through `reconciler/llm.py`, a small pluggable client —
+`LLM_PROVIDER` selects `anthropic`, `openai`, `gemini`, or `openai_compatible`
+(any OpenAI-wire-format host via `LLM_BASE_URL`/`LLM_API_KEY`, e.g. Groq,
+Together, OpenRouter, a local Ollama), or it auto-detects from whichever of
+`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` is set. **No key is
+set in this deployment as of this writing** — check `vercel env ls` for the
+current, authoritative state rather than trusting this sentence indefinitely
+— so by default the live app runs the deterministic template path with zero
+LLM calls, and falls back to that template automatically if a configured
+call ever fails anyway.
 
 This is a deliberate choice, not a missing feature: verification correctness
 matters more here than generation, and a non-deterministic model has no

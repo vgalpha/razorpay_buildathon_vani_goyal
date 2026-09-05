@@ -2,21 +2,16 @@
 
 Template-based by default -- always works, no network dependency, and every
 fact in the template came from engine.py's Decision, never invented here. If
-ANTHROPIC_API_KEY or OPENAI_API_KEY is set in the environment, the template
+an LLM provider is configured (see llm.py -- any of ANTHROPIC_API_KEY,
+OPENAI_API_KEY, GEMINI_API_KEY, or an explicit LLM_PROVIDER), the template
 sentence is optionally rephrased through that model for smoother prose. Any
 failure on that path (no key, network error, timeout, bad response) falls
 back to the template silently and correctly -- the LLM can only rephrase an
 already-true sentence, never add a fact or change a decision.
 """
 
-import json
-import os
-import urllib.error
-import urllib.request
-
 from .engine import Decision
-
-_LLM_TIMEOUT_SECONDS = 8
+from .llm import call_llm, is_configured
 
 _TEMPLATES = {
   "clean_match": "{detail} -- closed automatically.",
@@ -50,56 +45,18 @@ def _template_sentence(decision: Decision) -> str:
   return tmpl.format(detail=decision.reason_detail)
 
 
-def _call_anthropic(fact_sentence: str, api_key: str) -> str:
-  body = json.dumps({
-    "model": "claude-haiku-4-5-20251001",
-    "max_tokens": 150,
-    "messages": [{"role": "user", "content": (
-      "Rephrase this reconciliation-system message for a finance-ops "
-      "reviewer. Keep every number and fact exactly as given -- do not add, "
-      "remove, or guess any fact. One or two plain sentences, no preamble:\n\n"
-      f"{fact_sentence}")}],
-  }).encode()
-  req = urllib.request.Request(
-    "https://api.anthropic.com/v1/messages", data=body, method="POST",
-    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01",
-             "content-type": "application/json"})
-  with urllib.request.urlopen(req, timeout=_LLM_TIMEOUT_SECONDS) as resp:
-    parsed = json.loads(resp.read())
-  return parsed["content"][0]["text"].strip()
-
-
-def _call_openai(fact_sentence: str, api_key: str) -> str:
-  body = json.dumps({
-    "model": "gpt-4o-mini",
-    "max_tokens": 150,
-    "messages": [{"role": "user", "content": (
-      "Rephrase this reconciliation-system message for a finance-ops "
-      "reviewer. Keep every number and fact exactly as given -- do not add, "
-      "remove, or guess any fact. One or two plain sentences, no preamble:\n\n"
-      f"{fact_sentence}")}],
-  }).encode()
-  req = urllib.request.Request(
-    "https://api.openai.com/v1/chat/completions", data=body, method="POST",
-    headers={"Authorization": f"Bearer {api_key}",
-             "content-type": "application/json"})
-  with urllib.request.urlopen(req, timeout=_LLM_TIMEOUT_SECONDS) as resp:
-    parsed = json.loads(resp.read())
-  return parsed["choices"][0]["message"]["content"].strip()
-
-
 def rephrase(fact_sentence: str) -> str:
   """Best-effort LLM rephrase of an already-fully-determined sentence. Falls
   back to the sentence unchanged on any missing key or failure -- this
   function can never fail the caller, only degrade to the template."""
-  anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-  openai_key = os.environ.get("OPENAI_API_KEY")
-  if not anthropic_key and not openai_key:
+  if not is_configured():
     return fact_sentence
   try:
-    if anthropic_key:
-      return _call_anthropic(fact_sentence, anthropic_key)
-    return _call_openai(fact_sentence, openai_key)
+    return call_llm(
+      "Rephrase this reconciliation-system message for a finance-ops "
+      "reviewer. Keep every number and fact exactly as given -- do not add, "
+      "remove, or guess any fact. One or two plain sentences, no preamble:\n\n"
+      f"{fact_sentence}")
   except Exception:
     return fact_sentence
 

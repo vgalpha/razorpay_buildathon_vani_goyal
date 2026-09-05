@@ -25,11 +25,6 @@ client = TestClient(api.app)
 
 
 class TestGroundTruthEndpoint(unittest.TestCase):
-  @classmethod
-  def tearDownClass(cls):
-    if os.path.exists(_DB_PATH):
-      os.remove(_DB_PATH)
-
   def test_available_before_a_run(self):
     created = client.post("/batches", json={"seed": 1}).json()
     resp = client.get(f"/batches/{created['batch_id']}/ground_truth")
@@ -56,6 +51,39 @@ class TestGroundTruthEndpoint(unittest.TestCase):
     created = client.post("/batches", json={"seed": 3}).json()
     data = client.get(f"/batches/{created['batch_id']}/data").json()
     self.assertNotIn("ground_truth", data)
+
+
+class TestAskEndpoint(unittest.TestCase):
+  """No test here may depend on network access or a real LLM key -- this
+  suite runs with no LLM_* env var set, so every answer takes the
+  deterministic-template path (source "template"). The LLM-configured path
+  itself is covered in tests/test_qa.py and tests/test_llm.py, which don't
+  need a live server.
+  """
+
+  def test_answer_has_a_source_field(self):
+    created = client.post("/batches", json={"seed": 4}).json()
+    batch_id = created["batch_id"]
+    client.post(f"/batches/{batch_id}/run")
+    resp = client.post(f"/batches/{batch_id}/ask", json={"question": "what's the match rate?"})
+    self.assertEqual(resp.status_code, 200)
+    body = resp.json()
+    self.assertEqual(body["source"], "template")
+    self.assertIn("cases processed", body["answer"])
+
+  def test_requires_a_run_first(self):
+    created = client.post("/batches", json={"seed": 5}).json()
+    resp = client.post(f"/batches/{created['batch_id']}/ask", json={"question": "what broke?"})
+    self.assertEqual(resp.status_code, 400)
+
+
+def tearDownModule():
+  # Single owner of the shared SQLite file's cleanup -- runs once after every
+  # test in this module regardless of class order (unittest loads classes
+  # alphabetically within a module, so a per-class tearDownClass here would
+  # delete the file out from under a class that hasn't run yet).
+  if os.path.exists(_DB_PATH):
+    os.remove(_DB_PATH)
 
 
 if __name__ == "__main__":

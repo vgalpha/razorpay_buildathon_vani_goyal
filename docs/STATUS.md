@@ -891,6 +891,67 @@ previous change, no console errors; separately hit the deployed
 directly via curl at the `total_cases=1000` ceiling (see above). All 55
 backend tests pass. Committed as `d4f4f4f`, deployed, confirmed live.
 
+## Ground-truth transparency, discoverability fixes, and a pluggable LLM layer (2026-09-05)
+
+**Ground-truth transparency.** A new `GET /batches/{id}/ground_truth`
+endpoint (available as soon as a batch is generated, no run required)
+serves the answer key — `case_id`, `fault_type`, `expected_decision`,
+`expected_reason_category` — straight from `GroundTruthCase`, separately
+from `/data`, which still deliberately excludes it. A 4th "Expected
+outcomes" tab in the existing data-preview component surfaces it (and gets
+CSV/JSON download for free, since that component already had it). A
+collapsed "Compare against expected outcomes ▸" toggle in the results view
+joins that against the run's own decisions client-side, case by case, with
+a mismatches-only filter (defaulted on, since that's where
+`false_auto_close_rate`'s meaning was previously invisible — a percentage
+with no way to see *which* cases it counted) and drill-down into the real
+source records. README gained a "What accuracy means here" section
+explaining this is a validation run against a known-correct batch, not a
+production guarantee — the same distinction the metrics-row caption states
+in one line.
+
+**History-page slowness root-caused and fixed.** Not a payload or N+1 issue
+— `list_batches()` was already lightweight. The actual cost: schema setup
+(`_ensure_summary_columns`) unconditionally attempted up to 6 `ALTER TABLE`s
+plus a backfill on every engine construction, i.e. every serverless cold
+start. Now it does one introspection call first and only touches columns
+actually missing. A fabricated legacy-table test confirms a genuinely stale
+schema still gets migrated correctly.
+
+**"Discard & start over" added to the pre-run screen** (`#stage-ready`),
+reusing the existing `resetToNewRunHero()` — previously the only way off
+that screen if you didn't like the generated batch was a page reload.
+
+**Chat entry point made discoverable.** The floating launcher was an
+unlabeled icon-only circle — easy to miss entirely (reported after a user
+loaded a run via History and couldn't find it). Now labeled ("Ask a
+question"), plus a second, inline "Ask a question about this run" button in
+the results toolbar next to View data / Start a new run.
+
+**LLM layer made multi-provider and given one real use beyond phrasing.**
+`reconciler/llm.py` is a new small client shared by `notes.py` and `qa.py` —
+`LLM_PROVIDER` selects `anthropic` / `openai` / `gemini` /
+`openai_compatible` (any OpenAI-wire-format host via `LLM_BASE_URL` —
+Groq, Together, OpenRouter, a local Ollama), or it auto-detects from
+whichever of `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` is
+set, preserving the original zero-config behavior. `notes.py` was refactored
+onto this client with no behavior change. `qa.py` gained one new real
+capability: a genuinely unrecognized chat question now falls through to a
+free-form LLM answer — scoped to only the run's aggregate summary numbers,
+never a raw record, instructed to say "I don't know, check Exceptions"
+rather than guess — instead of the old static "I don't have a canned answer"
+message. The API's `/ask` response gained a `source` field
+(`"template"` | `"llm"`), and the chat panel labels the free-form case
+explicitly, so this new capability follows the same "disclosed on purpose"
+principle as everything else here rather than blending in silently the way
+`notes.py`'s cosmetic rephrasing deliberately does. 17 new tests
+(`tests/test_llm.py` plus additions to `test_qa.py`/`test_api.py`), all
+without network access — real provider calls are only exercised with a
+deliberately fake key to prove they fail gracefully. No key is set in this
+deployment as of this writing; setting one is a deliberate call left to
+Vani (cost, added latency, demo-failure risk on a live call), not something
+changed here.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:

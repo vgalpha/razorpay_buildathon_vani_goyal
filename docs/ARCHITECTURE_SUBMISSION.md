@@ -99,18 +99,26 @@ assumed.
 
 ## The explanation layer — where AI is actually used
 
-`notes.py` and `qa.py` are the only place an LLM is ever called, and it is
-never given the power to decide anything or state a number it wasn't handed.
-Every explanation and every answer is computed first in plain Python from
-real data, then optionally passed through an LLM purely to rephrase it more
-naturally — and if no LLM key is configured (the default, and the state this
-was built and tested in), the plain-Python phrasing is what's shown, and it
-already cites real record fields, not a generic label.
+`notes.py` and `qa.py` are the only place an LLM is ever called (via a
+small pluggable client, `reconciler/llm.py`, supporting Anthropic, OpenAI,
+Gemini, or any OpenAI-wire-format host), and it is never given the power to
+decide anything or state a number it wasn't handed. Every explanation and
+every answer is computed first in plain Python from real data, then
+optionally passed through an LLM purely to rephrase it more naturally — and
+if no LLM provider is configured (the default, and the state this was built
+and tested in), the plain-Python phrasing is what's shown, and it already
+cites real record fields, not a generic label.
 
 The Q&A layer answers a fixed set of question types — match rate, what
 broke, why was a specific case escalated, throughput, the largest open
 exception, and what the engine refuses to guess on — against the actual
-computed results of the run being asked about.
+computed results of the run being asked about. A question matching none of
+those falls through to a free-form LLM answer, but only when a provider is
+configured, and even then it's given nothing but the run's aggregate
+summary numbers (never a raw record) and told to say it doesn't know rather
+than guess — the UI labels this specific case as AI-generated rather than
+blending it in, since it's the one place actually generating a new
+sentence instead of rephrasing an already-true one.
 
 ## Serving layer
 
