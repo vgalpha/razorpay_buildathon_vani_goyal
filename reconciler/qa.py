@@ -57,6 +57,24 @@ def _answer_match_rate(ev: EvalReport) -> str:
     f"number, and it should read as close to zero as possible.")
 
 
+def _answer_per_fault_class(ev: EvalReport) -> str:
+  classes = ev.per_fault_class
+  if not classes:
+    return rephrase("No per-fault-class breakdown is available for this run.")
+  imperfect = {ft: d for ft, d in classes.items() if d["accuracy"] < 1.0}
+  if not imperfect:
+    return rephrase(
+      f"All {len(classes)} fault types are at 100% accuracy in this run -- "
+      "see the full per-fault-class table on screen for the exact "
+      "correct/total count on each one.")
+  parts = ", ".join(
+    f"{ft} {d['correct']}/{d['total']} ({d['accuracy']*100:.0f}%)"
+    for ft, d in sorted(imperfect.items()))
+  return rephrase(
+    f"{len(imperfect)} of {len(classes)} fault types are below 100%: "
+    f"{parts}. The rest are perfect -- see the full table on screen.")
+
+
 def _answer_exceptions(run: ReconciliationRun) -> str:
   escalated = [d for d in run.decisions if d.decision == "escalate"]
   if not escalated:
@@ -129,6 +147,10 @@ def _llm_fallback(question: str, run: ReconciliationRun,
   by_cat: Dict[str, int] = {}
   for d in run.decisions:
     by_cat[d.reason_category] = by_cat.get(d.reason_category, 0) + 1
+  per_fault_class = {
+    ft: f"{d['correct']}/{d['total']}" for ft, d in sorted(ev.per_fault_class.items())}
+  per_rule = {
+    r: f"{d['correct']}/{d['total']}" for r, d in sorted(ev.per_rule.items())}
   summary = (
     f"total_cases={ev.total_cases}, "
     f"overall_accuracy={ev.overall_accuracy*100:.1f}%, "
@@ -136,7 +158,9 @@ def _llm_fallback(question: str, run: ReconciliationRun,
     f"auto_close_precision={ev.auto_close_precision*100:.1f}%, "
     f"auto_close_recall={ev.auto_close_recall*100:.1f}%, "
     f"throughput_per_sec={ev.throughput_per_sec:,.0f}, "
-    f"decision_counts_by_reason_category={by_cat}")
+    f"decision_counts_by_reason_category={by_cat}, "
+    f"per_fault_class_correct_over_total={per_fault_class}, "
+    f"per_rule_correct_over_total={per_rule}")
   prompt = (
     "You are answering a question about one already-completed payment "
     "reconciliation run, for a finance-ops reviewer. You are given only the "
@@ -158,6 +182,12 @@ def _llm_fallback(question: str, run: ReconciliationRun,
 def _route(question: str, run: ReconciliationRun, ev: EvalReport,
            payments: Optional[List[Payment]] = None) -> Tuple[str, str]:
   q = question.lower()
+  # Checked before the generic "accuracy" match below -- "accuracy" as a
+  # substring also appears in "per fault class accuracy"/"per-fault-class
+  # accuracy" questions, which ask for a genuinely different breakdown and
+  # were previously misrouted to the overall-accuracy answer instead.
+  if "per fault" in q or "per-fault" in q or "fault class" in q or "fault type" in q:
+    return _answer_per_fault_class(ev), "template"
   if "match rate" in q or "accuracy" in q:
     return _answer_match_rate(ev), "template"
   if "why" in q and _ID_PATTERN.search(question):

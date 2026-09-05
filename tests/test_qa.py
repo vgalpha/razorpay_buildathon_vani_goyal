@@ -14,7 +14,7 @@ import unittest
 
 from reconciler import qa
 from reconciler.engine import reconcile
-from reconciler.evaluate import evaluate
+from reconciler.evaluate import EvalReport, evaluate
 from reconciler.notes import generate_note, rephrase
 from reconciler.schema import GroundTruthCase
 from reconciler.taxonomy import TAXONOMY
@@ -122,6 +122,50 @@ class TestQAIntents(unittest.TestCase):
   def test_unrecognized_question_gives_a_helpful_fallback(self):
     ans = qa.answer("what's your favorite color?", self.recon_run, self.ev)
     self.assertIn("canned answer", ans)
+
+  def test_per_fault_class_intent_is_not_swallowed_by_match_rate(self):
+    # Regression: "accuracy" as a substring of "per fault class accuracy"
+    # previously matched the generic match-rate intent first, so this
+    # question got the overall-accuracy answer instead of a per-class one.
+    ans = qa.answer("whats per fault class accuracy", self.recon_run, self.ev)
+    self.assertIn("100% accuracy", ans)
+    self.assertNotIn("cases processed", ans)  # that's the match-rate answer's phrasing
+
+  def test_per_fault_class_intent_matches_several_phrasings(self):
+    for question in ("what's the per-fault-class accuracy?",
+                      "per fault class breakdown",
+                      "accuracy by fault type"):
+      ans = qa.answer(question, self.recon_run, self.ev)
+      self.assertNotIn("cases processed", ans)
+
+
+class TestPerFaultClassAnswer(unittest.TestCase):
+  """_build_scenario() is always 100% accuracy, so the "some fault types are
+  below 100%" branch needs its own EvalReport, built directly rather than
+  through a real run."""
+
+  def test_lists_only_the_imperfect_classes(self):
+    ev = EvalReport(
+      total_cases=10, overall_accuracy=0.9, false_auto_close_rate=0.0,
+      auto_close_precision=1.0, auto_close_recall=1.0, auto_close_f1=1.0,
+      throughput_per_sec=1000, wall_time_seconds=0.01,
+      per_fault_class={
+        "clean_match": {"correct": 5, "total": 5, "accuracy": 1.0},
+        "disputed": {"correct": 4, "total": 5, "accuracy": 0.8},
+      })
+    ans = qa.answer("per fault class accuracy", None, ev)
+    self.assertIn("disputed", ans)
+    self.assertIn("4/5", ans)
+    self.assertNotIn("clean_match", ans)
+
+  def test_all_perfect_gives_a_clean_summary(self):
+    ev = EvalReport(
+      total_cases=5, overall_accuracy=1.0, false_auto_close_rate=0.0,
+      auto_close_precision=1.0, auto_close_recall=1.0, auto_close_f1=1.0,
+      throughput_per_sec=1000, wall_time_seconds=0.01,
+      per_fault_class={"clean_match": {"correct": 5, "total": 5, "accuracy": 1.0}})
+    ans = qa.answer("per fault class accuracy", None, ev)
+    self.assertIn("100% accuracy", ans)
 
 
 class TestNotesTemplateFallback(unittest.TestCase):
