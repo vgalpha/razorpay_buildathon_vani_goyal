@@ -27,7 +27,7 @@ _TIMEOUT_SECONDS = 8
 _DEFAULT_MODELS = {
   "anthropic": "claude-haiku-4-5-20251001",
   "openai": "gpt-4o-mini",
-  "gemini": "gemini-2.0-flash",
+  "gemini": "gemini-3.6-flash",
 }
 
 
@@ -65,7 +65,14 @@ def _call_openai_style(prompt: str, api_key: str, model: str, base_url: str) -> 
 
 
 def _call_gemini(prompt: str, api_key: str, model: str) -> str:
-  body = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
+  # thinkingLevel "low" -- this model family "thinks" by default, which
+  # takes 15-20s+ even for a trivial prompt and blows well past
+  # _TIMEOUT_SECONDS; without this every call here would silently time out
+  # and fall back to the template/static answer regardless of a valid key.
+  body = json.dumps({
+    "contents": [{"parts": [{"text": prompt}]}],
+    "generationConfig": {"thinkingConfig": {"thinkingLevel": "low"}},
+  }).encode()
   url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
          f"{model}:generateContent?key={api_key}")
   req = urllib.request.Request(url, data=body, method="POST",
