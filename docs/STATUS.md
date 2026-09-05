@@ -1001,6 +1001,86 @@ do unattended. See `docs/PROJECT_CONTEXT.md`'s "Video/submission
 requirements" entry for the full trail, including an unconfirmed secondary-
 source claim that the video field wants an unlisted YouTube link.
 
+## Video script: intro fix, failure beat, and card-based restructure (2026-09-05)
+
+Three follow-up rounds on `docs/VIDEO_SCRIPT.md` after the initial rewrite
+above, each prompted by direct feedback. `VIDEO_SCRIPT.md` itself now stays
+action-only (script, click sequence, numbers, recording steps) — this
+entry holds the *why*, so future changes to it can be evaluated against the
+actual reasoning rather than guessed at.
+
+**Round 1 — the cold open was boring.** The first rewrite opened with two
+back-to-back expository beats (a problem statement, then a design-principle
+statement) totaling 45 seconds with zero clicks — directly contradicting
+the script's own cited advice that judges decide fast. Consulted advisor:
+confirmed the fix, collapsed both into a ~15s open that started on-screen
+evidence (a completed run's flagged cards) instead of a claim, and moved
+the "plain math decides, AI only explains" line out of the intro entirely
+into the 3:30 chat beat, where it lands as a caption on evidence already
+on screen rather than an unearned claim before anything's run. Advisor also
+caught a real structural gap while reviewing: the doc claimed a "beat 6"
+answered the buildathon's stated "what broke at 2 AM" requirement, but no
+beat actually was a failure-recovery story — the FX limitation is a known
+limitation, disclosed, not something that broke and got fixed. Added a
+genuine one: the History-slowness investigation (first hypothesis was a
+heavy query, disproven by actually reading it; the real cause was the
+schema-migration recheck on every cold start).
+
+**Round 2 — explicit chronology requested.** Direction: problem card(s) →
+TieOut card → "let's see it in action" → demo → failure-recovery card →
+conclusion, with "a little more jazz, not too much" in the delivery, using
+Premiere Pro for editing. Consulted advisor again given the apparent
+tension with round 1's "don't open on a slide" framing — resolved as: the
+intro wasn't boring because it opened on a slide, it was boring because
+the slides were dry with nothing distinctive to say. A card can be a hook.
+Kept round 1's real insight (the TieOut card states *what* the product
+does; the *how it's built* claim stays held for the chat beat, so it's
+earned rather than asserted twice) and restructured everything else around
+5 cards: 2 problem cards, TieOut, failure-recovery, conclusion. Retimed to
+~4:45 by tightening demo narration, not by cutting either
+`multi_payment_ambiguous`/`books_duplicate_invoice_collision` escalation
+example — advisor flagged both as load-bearing (opposite halves of the same
+abstention thesis) and not to trade one for pacing. On the practical "how
+do I make a slide in Premiere" question: recommended building cards
+natively in Premiere's Essential Graphics panel over round-tripping through
+PowerPoint, since a default PPT template's look would visibly clash with
+the product's own dark theme; PNG-export-from-Keynote/Canva or a plain
+screenshot both work identically as a fallback for anyone who'd rather lay
+text out visually first. Recommended against background music (licensing
+risk on deadline day, and it works against the plain-spoken register that
+is this project's actual differentiator).
+
+**Round 3 — doc cleanup.** `VIDEO_SCRIPT.md` had accumulated meta-commentary
+explaining *why* each beat was shaped the way it was (references to earlier
+drafts, rationale for keeping/cutting content, "new beat, didn't exist
+before" asides) mixed into the actionable script itself. Moved all of that
+here; `VIDEO_SCRIPT.md` now reads as a pure shot list — script, click
+sequence, numbers, recording steps — with no explanation of its own
+editorial history left in it.
+
+**How the numbers in the script were produced** (moved here from
+`VIDEO_SCRIPT.md`, reproduce if `reconciler/generate.py`'s builders ever
+change):
+
+```python
+from reconciler.generate import generate_dataset, scale_taxonomy_counts
+from reconciler.engine import reconcile
+from reconciler.evaluate import evaluate
+
+ds = generate_dataset(seed=42)                 # the main 207-case walkthrough
+run = reconcile(ds.payments, ds.settlement_lines, ds.invoices)
+ev = evaluate(run, ds.ground_truth)
+
+ds2 = generate_dataset(seed=42, fault_counts=scale_taxonomy_counts(150))  # the customize-panel beat
+```
+
+`seed=42`'s exact output is deterministic and reproducible forever (see
+`tests/test_generate.py`) — the script's numbers stay exactly right as long
+as the generator hasn't changed since. Also separately verified live
+against `https://tieout-lemon.vercel.app/` under `DEMO_FIXED_SEED=42` to
+produce byte-identical output to the local run above (see the entry above
+this one).
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
