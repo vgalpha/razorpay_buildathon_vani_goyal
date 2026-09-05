@@ -97,13 +97,17 @@ This is stated precisely rather than glossed as "everything's live" or hidden as
 
 ## Screenshots
 
-*Pending — to be captured from the live deployment and dropped into `docs/images/`. See `docs/images/README.md`.*
-
 ![Hero](docs/images/hero.png)
-![Results dashboard](docs/images/results.png)
-![Case drilldown](docs/images/drilldown.png)
-![Ground-truth transparency](docs/images/ground-truth.png)
-![Chat / Q&A](docs/images/chat.png)
+
+![Results dashboard — accuracy, false-auto-close rate, per-fault-class and per-rule breakdowns](docs/images/results.png)
+
+Click into any flagged case and the actual source records are right there — no black box:
+
+![Case drilldown: two real payments on the same order, side by side, with the abstention reasoning](docs/images/drilldown.png)
+
+![Expected outcomes — the ground truth this run was graded against, visible before or after running the engine](docs/images/ground-truth.png)
+
+![Chat panel answering an off-script question, labeled by source](docs/images/chat.png)
 
 ## Quick start
 
