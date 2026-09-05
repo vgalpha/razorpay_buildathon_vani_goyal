@@ -1081,6 +1081,62 @@ against `https://tieout-lemon.vercel.app/` under `DEMO_FIXED_SEED=42` to
 produce byte-identical output to the local run above (see the entry above
 this one).
 
+## Live-recording-session fixes: Gemini bugs, real numbers, Action/Speak format (2026-09-05)
+
+Vani started actually recording. Two real bugs were found and fixed live,
+in production, mid-session:
+
+**Bug 1 — `DEMO_FIXED_SEED` didn't produce the script's numbers.** The
+script's 207-case numbers came from calling `generate_dataset(seed=42)`
+directly. The actual "Generate sample data" button sends an empty body,
+which routes through `_resolve_fault_counts` → `jitter_taxonomy_counts(seed)`
+when neither `fault_counts` nor `total_cases` is given — jitter is applied
+even with the seed fixed, giving **229 cases**, not 207, with different
+case IDs (jitter changes per-category counts, which shifts every
+subsequent RNG draw). Not a code bug — `DEMO_FIXED_SEED` does exactly what
+it was built to do (reproducible across repeat clicks) — but the script's
+specific numbers were wrong for what the button actually produces.
+`VIDEO_SCRIPT.md` corrected to the real numbers from actual batch
+`266ce9f5d719` (229 cases, 249 payments, 220 settlement lines, 128
+invoices; real case IDs for all four scripted escalation examples). The
+`total_cases=150` customize-panel path is unaffected — it goes through
+`scale_taxonomy_counts`, not jitter — so the 151-case number was already
+correct and unchanged.
+
+**Bug 2 — the Gemini provider was fully broken.** Vani supplied a real
+`GEMINI_API_KEY` to demo the chat's LLM layer live. Two separate bugs
+surfaced in `reconciler/llm.py`, found by testing directly against
+Google's API rather than guessing from the silent "template" fallback:
+1. The hardcoded default model, `gemini-2.0-flash`, has been retired by
+   Google (confirmed via the API's own 404 response, which names the
+   replacement).
+2. The replacement (`gemini-3.6-flash`) "thinks" by default — a trivial
+   prompt took ~20s, a realistic prompt took ~20-25s, both well past the
+   original 8s timeout, so every call was silently timing out and
+   returning the template fallback regardless of a valid key.
+Fixed: updated the default model, added `thinkingConfig: {thinkingLevel:
+"low"}` to the Gemini request body (cuts a short prompt to ~2-4s, though a
+long prompt can still take ~20s), and raised `_TIMEOUT_SECONDS` from 8 to
+25 to accommodate the slow case rather than silently discarding a
+legitimate answer. Verified end-to-end against production after each
+change: quick-chip questions now return in ~10-15s (`source: "template"`,
+Gemini-rephrased), free-form unrecognized questions in ~20-25s
+(`source: "llm"`, real Gemini answer, correctly declining to invent a
+number not in the given summary). Both commits (`f887a3c`, `7e26ccd`) were
+pushed and deployed live during the recording session, not queued for
+later.
+
+**`VIDEO_SCRIPT.md` reformatted** into explicit **Action** / **Speak**
+sub-lines per beat, per direct request for something easier to follow
+live while recording — separates what to click from what to say, instead
+of prose paragraphs mixing both. The chat beat (2:50–3:20) also gained a
+callout: with a real key configured, that beat no longer demonstrates
+graceful-degradation-to-a-template (the whole point of the original
+script) — it now shows a genuine live AI answer instead, correctly
+labeled. Noted as arguably a stronger demo, but a different one from what
+was scripted, and callable out loud on camera rather than silently
+narrated as something it no longer is.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
