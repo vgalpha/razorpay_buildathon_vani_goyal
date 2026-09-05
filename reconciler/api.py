@@ -178,8 +178,9 @@ def get_batch(batch_id: str):
 def get_batch_data(batch_id: str):
   """The raw records a batch was generated from, for a "what are we working
   with" preview/download. Deliberately excludes ground_truth -- that's the
-  answer key, and showing it next to the data invites the wrong question
-  from anyone evaluating the reconciliation accuracy.
+  answer key, and it's served on its own through /ground_truth below instead,
+  so exposing it is a deliberate, clearly-named choice rather than something
+  folded quietly into "the data".
   """
   batch = _get_batch(batch_id)
   dataset = batch["dataset"]
@@ -188,6 +189,18 @@ def get_batch_data(batch_id: str):
     "settlement_lines": dataset["settlement_lines"],
     "invoices": dataset["invoices"],
   }
+
+
+@app.get("/batches/{batch_id}/ground_truth")
+def get_batch_ground_truth(batch_id: str):
+  """The answer key this batch was generated with -- case_id, fault_type,
+  and the expected decision/reason_category, straight from GroundTruthCase.
+  Available as soon as a batch is generated; does not require a run. Exists
+  so accuracy claims are independently checkable rather than trusted at face
+  value (see README's "What accuracy means here").
+  """
+  batch = _get_batch(batch_id)
+  return {"ground_truth": batch["dataset"]["ground_truth"]}
 
 
 @app.get("/batches")

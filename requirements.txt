@@ -3,3 +3,4 @@ uvicorn>=0.39
 requests>=2.32
 sqlalchemy>=2.0
 psycopg2-binary>=2.9
+httpx>=0.28  # test-only: required by fastapi.testclient.TestClient (tests/test_api.py)

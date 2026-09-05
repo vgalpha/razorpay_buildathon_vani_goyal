@@ -146,6 +146,7 @@
   .card .value { font-size: 30px; margin-top: 8px; font-weight: 650; letter-spacing: -0.01em; }
   .card .value-note { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
   .headline-note { font-size: 12px; color: var(--text-dim); margin-top: 14px; }
+  .panel-hint { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin: 10px 0; }
   .card.safety .value.zero { color: var(--good); }
   .card.safety .value.nonzero { color: var(--bad); }
 
@@ -464,11 +465,17 @@
           <button class="preview-tab active" data-record="payments">Payments</button>
           <button class="preview-tab" data-record="settlement_lines">Settlements</button>
           <button class="preview-tab" data-record="invoices">Books / invoices</button>
+          <button class="preview-tab" data-record="ground_truth">Expected outcomes</button>
           <div class="preview-actions">
             <button id="btn-download-csv" class="btn small">Download CSV</button>
             <button id="btn-download-json" class="btn small">Download JSON</button>
           </div>
         </div>
+        <p id="preview-caption" class="panel-hint" hidden>
+          The known-correct outcome for each case, fixed when this batch was generated &mdash;
+          available whether or not you've run the engine yet. This is what should happen,
+          not what the engine actually decided.
+        </p>
         <div id="preview-table-wrap" class="preview-table-scroll"></div>
         <div class="preview-pagination">
           <button id="preview-prev" class="btn small">Previous</button>
@@ -493,6 +500,33 @@
         <div class="zone zone-headline">
           <div class="cards" id="metric-cards"></div>
           <div class="headline-note">Measured against this batch's known-correct answers — a validation score for the engine, not a live production guarantee.</div>
+        </div>
+
+        <div class="zone">
+          <button id="scoring-toggle" class="tech-toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            Compare against expected outcomes
+          </button>
+          <div id="scoring-panel" hidden>
+            <p class="panel-hint">
+              Case by case: what this case was built to expect, next to what the engine
+              actually decided. Mismatches are shown first by default &mdash; they're the
+              small number of cases actually worth checking; most rows match when accuracy is high.
+            </p>
+            <div class="exc-toolbar">
+              <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-dim); cursor:pointer;"
+                     title="Most cases match when accuracy is high — hiding them surfaces the few that don't.">
+                <input type="checkbox" id="scoring-mismatches-only" checked>
+                Show mismatches only
+              </label>
+            </div>
+            <div id="scoring-table-wrap" class="exc-table-scroll"></div>
+            <div class="preview-pagination">
+              <button id="scoring-prev" class="btn small">Previous</button>
+              <span id="scoring-page-info"></span>
+              <button id="scoring-next" class="btn small">Next</button>
+            </div>
+          </div>
         </div>
 
         <div class="zone">
@@ -814,6 +848,13 @@ function resetResultPanels() {
   $("technical-detail").classList.remove("open");
   $("tech-toggle").classList.remove("open");
   $("tech-toggle").lastChild.textContent = "Show engine internals (pass timings)";
+  $("scoring-panel").hidden = true;
+  $("scoring-toggle").classList.remove("open");
+  $("scoring-toggle").lastChild.textContent = "Compare against expected outcomes";
+  $("scoring-table-wrap").innerHTML = "";
+  $("scoring-mismatches-only").checked = true;
+  scoringPage = 0;
+  expandedScoringId = null;
 }
 
 function render(data, { justRan = false, viewingHistorical = false, createdAt = null } = {}) {
@@ -945,10 +986,22 @@ function buildDatasetIndex() {
   return idx;
 }
 
+// The answer key (ground_truth) is served from its own endpoint, separate
+// from /data -- see reconciler/api.py's comment on why -- so every place
+// that populates datasetCache fetches both and merges them, rather than
+// each caller reinventing that.
+async function fetchDatasetCache() {
+  const [data, gt] = await Promise.all([
+    api(`/batches/${batchId}/data`),
+    api(`/batches/${batchId}/ground_truth`),
+  ]);
+  return { ...data, ground_truth: gt.ground_truth };
+}
+
 async function ensureDatasetCache() {
   if (!batchId) return null;
   if (!datasetCache) {
-    try { datasetCache = await api(`/batches/${batchId}/data`); }
+    try { datasetCache = await fetchDatasetCache(); }
     catch (e) { return null; }
   }
   if (!datasetIndex) datasetIndex = buildDatasetIndex();
@@ -1197,6 +1250,129 @@ function renderExceptionsTable() {
   $("exc-next").disabled = exceptionPage >= totalPages - 1;
 }
 
+// ---------------------------------------------- compare against expected --
+// Every case has a known-correct outcome from generation time (the
+// "Expected outcomes" preview tab); this joins that with what the engine
+// actually decided for this run, case by case. Matching logic mirrors
+// reconciler/evaluate.py's own exactly (decision.decision == gt.expected_
+// decision, "missing" if no decision exists for that case_id) -- a
+// feature whose whole point is honesty about scoring must not invent its
+// own, possibly-different, idea of "correct".
+const SCORING_PAGE_SIZE = 25;
+let scoringPage = 0;
+let expandedScoringId = null;
+
+function buildScoringRows() {
+  if (!datasetCache || !datasetCache.ground_truth || !lastRun) return [];
+  const decisionsByCase = {};
+  lastRun.decisions.forEach((d) => { decisionsByCase[d.case_id] = d; });
+  return datasetCache.ground_truth.map((gt) => {
+    const decision = decisionsByCase[gt.case_id];
+    const actualDecision = decision ? decision.decision : "missing";
+    return {
+      case_id: gt.case_id,
+      fault_type: gt.fault_type,
+      expected_decision: gt.expected_decision,
+      expected_reason_category: gt.expected_reason_category,
+      actual_decision: actualDecision,
+      actual_reason_category: decision ? decision.reason_category : null,
+      match: actualDecision === gt.expected_decision,
+      decision,
+    };
+  });
+}
+
+function renderScoringTable() {
+  const el = $("scoring-table-wrap");
+  if (!el) return;
+  const rows = buildScoringRows();
+  const mismatchesOnly = $("scoring-mismatches-only").checked;
+  const filtered = mismatchesOnly ? rows.filter((r) => !r.match) : rows;
+
+  if (!rows.length) {
+    el.innerHTML = `<p class="empty" style="padding:14px;">No scoring data available.</p>`;
+    $("scoring-page-info").textContent = "";
+    $("scoring-prev").disabled = true;
+    $("scoring-next").disabled = true;
+    return;
+  }
+  if (!filtered.length) {
+    el.innerHTML = `<p class="empty" style="padding:14px;">No mismatches &mdash; every case matched its expected outcome.</p>`;
+    $("scoring-page-info").textContent = "";
+    $("scoring-prev").disabled = true;
+    $("scoring-next").disabled = true;
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / SCORING_PAGE_SIZE));
+  scoringPage = Math.min(Math.max(scoringPage, 0), totalPages - 1);
+  const start = scoringPage * SCORING_PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + SCORING_PAGE_SIZE);
+
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th title="Internal identifier linking this row to the actual payment/settlement/invoice records, and to the Exceptions/Quarantine sections if the same case appears there.">Case ID</th>
+        <th title="Which category of test scenario this case was constructed to be -- synthetic/validation batches only, not something a real transaction would carry.">Fault type</th>
+        <th>Expected outcome</th>
+        <th>Actual outcome</th>
+        <th title="&#10007; means the engine's decision differs from what this case was built to expect.">Match</th>
+      </tr></thead>
+      <tbody>
+        ${pageRows.map((r) => `
+          <tr class="exc-row ${expandedScoringId === r.case_id ? "open" : ""}" data-case-id="${r.case_id}">
+            <td class="mono"><span class="exc-caret">&#9656;</span>${r.case_id}</td>
+            <td>${humanize(r.fault_type)}</td>
+            <td>${humanize(r.expected_decision)} &middot; ${humanize(r.expected_reason_category)}</td>
+            <td>${humanize(r.actual_decision)}${r.actual_reason_category ? " &middot; " + humanize(r.actual_reason_category) : ""}</td>
+            <td class="mono ${r.match ? "ok" : "fail"}">${r.match ? CHECK_ICON : CROSS_ICON}</td>
+          </tr>
+          ${expandedScoringId === r.case_id ? `
+            <tr class="exc-detail-row"><td colspan="5">${
+              r.decision ? renderDrillDown(r.decision.record_ids, r.decision.reason_category)
+                         : '<p class="exc-detail-hint">No decision was recorded for this case in this run.</p>'
+            }</td></tr>
+          ` : ""}
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+  el.scrollTop = 0;
+  $("scoring-page-info").textContent =
+    `Page ${scoringPage + 1} of ${totalPages} — ${filtered.length.toLocaleString()} of ${rows.length.toLocaleString()} cases shown`;
+  $("scoring-prev").disabled = scoringPage === 0;
+  $("scoring-next").disabled = scoringPage >= totalPages - 1;
+}
+
+$("scoring-toggle").addEventListener("click", async () => {
+  const opening = $("scoring-panel").hidden;
+  $("scoring-panel").hidden = !opening;
+  $("scoring-toggle").classList.toggle("open", opening);
+  $("scoring-toggle").lastChild.textContent = opening
+    ? "Hide expected-outcomes comparison" : "Compare against expected outcomes";
+  if (!opening) return;
+  scoringPage = 0;
+  expandedScoringId = null;
+  $("scoring-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">Loading&hellip;</p>`;
+  await ensureDatasetCache();
+  renderScoringTable();
+});
+
+$("scoring-mismatches-only").addEventListener("change", () => {
+  scoringPage = 0;
+  renderScoringTable();
+});
+$("scoring-prev").addEventListener("click", () => { scoringPage--; renderScoringTable(); });
+$("scoring-next").addEventListener("click", () => { scoringPage++; renderScoringTable(); });
+$("scoring-table-wrap").addEventListener("click", (e) => {
+  const row = e.target.closest(".exc-row");
+  if (!row) return;
+  toggleDrillDown(
+    row.dataset.caseId,
+    () => expandedScoringId, (v) => { expandedScoringId = v; },
+    renderScoringTable);
+});
+
 $("tech-toggle").addEventListener("click", () => {
   const open = $("technical-detail").classList.toggle("open");
   $("tech-toggle").classList.toggle("open", open);
@@ -1281,6 +1457,7 @@ async function openPreview(slotId) {
   previewRecordType = "payments";
   previewPage = 0;
   document.querySelectorAll(".preview-tab").forEach(t => t.classList.toggle("active", t.dataset.record === "payments"));
+  $("preview-caption").hidden = true;
   await loadAndRenderPreview();
 }
 
@@ -1302,6 +1479,7 @@ document.querySelectorAll(".preview-tab").forEach((tab) => {
     previewRecordType = tab.dataset.record;
     previewPage = 0;
     document.querySelectorAll(".preview-tab").forEach(t => t.classList.toggle("active", t === tab));
+    $("preview-caption").hidden = previewRecordType !== "ground_truth";
     renderPreviewTable();
   });
 });
@@ -1313,7 +1491,7 @@ async function loadAndRenderPreview() {
   if (!batchId) return;
   $("preview-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">Loading…</p>`;
   try {
-    if (!datasetCache) datasetCache = await api(`/batches/${batchId}/data`);
+    if (!datasetCache) datasetCache = await fetchDatasetCache();
     renderPreviewTable();
   } catch (e) {
     $("preview-table-wrap").innerHTML = `<p class="empty" style="padding:14px;">Couldn't load the data: ${e.message}</p>`;
@@ -1352,6 +1530,12 @@ const RECORD_COLUMNS = {
     { key: "customer_id", label: "Customer" },
     { key: "amount", label: "Amount", fmt: money },
     { key: "status", label: "Status" },
+  ],
+  ground_truth: [
+    { key: "case_id", label: "Case ID", mono: true },
+    { key: "fault_type", label: "Fault type", fmt: humanize },
+    { key: "expected_decision", label: "Expected decision", fmt: humanize },
+    { key: "expected_reason_category", label: "Expected reason", fmt: humanize },
   ],
 };
 
@@ -1414,6 +1598,11 @@ const CSV_COLUMNS = {
     ["invoice_id", (i) => i.id], ["customer_id", (i) => i.customer_id],
     ["order_id", (i) => i.order_id], ["amount_inr", (i) => (i.amount / 100).toFixed(2)],
     ["status", (i) => i.status],
+  ],
+  ground_truth: [
+    ["case_id", (g) => g.case_id], ["fault_type", (g) => g.fault_type],
+    ["expected_decision", (g) => g.expected_decision],
+    ["expected_reason_category", (g) => g.expected_reason_category],
   ],
 };
 
