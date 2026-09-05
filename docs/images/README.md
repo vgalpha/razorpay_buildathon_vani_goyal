@@ -1,0 +1,1 @@
+Pending live screenshots (hero, results, drilldown, ground-truth, chat) to be captured from the deployed app via Chrome and dropped in here as `hero.png`, `results.png`, `drilldown.png`, `ground-truth.png`, `chat.png`.

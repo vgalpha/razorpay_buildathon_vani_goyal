@@ -1,6 +1,6 @@
 """Persistence tests against SQLite (portable, no external service needed --
-see docs/STATUS.md for why the automated suite uses this while production
-targets real Postgres/Neon). Each test opens a fresh engine against the same
+the automated suite uses this while production targets real Postgres/Neon,
+see reconciler/db.py). Each test opens a fresh engine against the same
 on-disk file to simulate what a real process restart looks like -- not just
 reads within one open connection.
 """

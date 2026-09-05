@@ -1,9 +1,9 @@
 """Thin FastAPI wrapper around the reconciliation engine.
 
 Batches persist in a real database (see reconciler/db.py) -- Postgres in
-production (Neon recommended, see docs/STATUS.md), SQLite for tests. This
-layer only ever calls into reconciler.* -- it must never reimplement
-matching, scoring, or question-answering logic itself.
+production (Neon recommended), SQLite for tests. This layer only ever calls
+into reconciler.* -- it must never reimplement matching, scoring, or
+question-answering logic itself.
 """
 
 import os
@@ -53,8 +53,8 @@ _DEMO_FIXED_SEED = os.environ.get("DEMO_FIXED_SEED")
 
 TOTAL_CASES_MIN = 20
 # Payload-size guardrail, not a compute-time one. Verified against the
-# actual deployed function at this ceiling (2026-09-04): run ~1.6s at 100%
-# accuracy, /data response ~660KB -- see docs/STATUS.md.
+# actual deployed function at this ceiling: run ~1.6s at 100% accuracy,
+# /data response ~660KB.
 TOTAL_CASES_MAX = 1000
 
 

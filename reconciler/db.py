@@ -2,9 +2,9 @@
 live in api.py -- the user asked for a genuine database, not a workaround.
 
 Reads DATABASE_URL from the environment; works against any SQLAlchemy-
-supported backend (Postgres in production -- Neon recommended, see
-docs/STATUS.md -- SQLite for the automated test suite, which needs no
-external service). No provider-specific behavior is hard-coded here.
+supported backend (Postgres in production -- Neon recommended -- SQLite for
+the automated test suite, which needs no external service). No
+provider-specific behavior is hard-coded here.
 """
 
 import json

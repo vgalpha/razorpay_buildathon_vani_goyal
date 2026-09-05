@@ -1,7 +1,7 @@
 """Generator tests. The default (no-args) path underpins the documented
-seed-42/207-case verified benchmark cited throughout docs/STATUS.md and
-README.md -- it must never change, so it gets an exact-value regression
-test rather than just a shape check.
+seed-42/207-case verified benchmark cited in README.md -- it must never
+change, so it gets an exact-value regression test rather than just a shape
+check.
 """
 
 import unittest
