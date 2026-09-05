@@ -22,7 +22,11 @@ import json
 import os
 import urllib.request
 
-_TIMEOUT_SECONDS = 8
+# Gemini's "thinking" models can take 15-20s+ even at thinkingLevel "low"
+# for a longer prompt (verified directly against the API) -- generous
+# enough to not falsely cut off a legitimately slow-but-correct response,
+# still bounded so a request can't hang the endpoint indefinitely.
+_TIMEOUT_SECONDS = 25
 
 _DEFAULT_MODELS = {
   "anthropic": "claude-haiku-4-5-20251001",
