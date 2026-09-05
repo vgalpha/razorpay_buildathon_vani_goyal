@@ -189,8 +189,13 @@ still picture, it's the live Chrome window.
 **Step 7**
 - **Action:** Click the **"Ask a question"** button (either the small
   round one in the bottom-right corner, or the "Ask a question about this
-  run" button near the top). Click the chip that says **"what's the
-  biggest exception?"**
+  run" button near the top). Click the chip that says **"what does it
+  refuse to guess on?"** — not the "biggest exception" chip: that one
+  always names a `high_value_gate` case, since "biggest" is measured by
+  amount and that category exists specifically because the amount is
+  large. It's a correct answer but not an interesting one. This chip
+  instead echoes the two abstention cases from Step 5, which is the
+  actual thesis worth reinforcing here.
 - **Say:** *(nothing — wait quietly for about 10-15 seconds while it
   answers; you'll trim this waiting time out later, in Part 3, step 7)*
 
