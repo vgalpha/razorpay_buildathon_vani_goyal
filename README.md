@@ -59,14 +59,21 @@ Then open `frontend/index.html` directly in a browser (it talks to
 
 ## What it deliberately does and doesn't use AI for
 
-- **Uses it for:** writing the plain-English explanation for a flagged case,
-  and phrasing answers to questions about the run (match rate, what broke,
-  throughput, biggest exception, what it refuses to guess on).
-- **Never uses it for:** deciding whether a case is a match, computing an
-  amount, or picking between two ambiguous candidates. Those are answered by
-  Python comparisons in `reconciler/engine.py`, unit-tested against a fault
-  taxonomy (`reconciler/taxonomy.py`) that is the single source of truth for
-  what's correct.
+**Plain math decides, AI only explains.** Every match, mismatch, and
+ambiguous-case abstention is a Python comparison in `reconciler/engine.py`,
+unit-tested against a fault taxonomy (`reconciler/taxonomy.py`) that is the
+single source of truth for what's correct — an LLM never sees a payment or
+settlement record, and never picks between two candidates. The one place an
+LLM is *allowed* in (`reconciler/notes.py`) is optional cosmetic phrasing of
+an already-decided, already-true sentence: it can only rephrase a fact, never
+add one or change a decision. It requires `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY` to be set; **neither is set in this deployment**, so the
+live app runs on the deterministic template path with zero LLM calls, and
+falls back to that template automatically if the call ever failed anyway.
+
+This is a deliberate choice, not a missing feature: verification correctness
+matters more here than generation, and a non-deterministic model has no
+business being the thing that decides whether money is accounted for.
 
 ## The one thing it's honest about not solving
 

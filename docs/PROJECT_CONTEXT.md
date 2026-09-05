@@ -33,6 +33,20 @@ just inferred — actually read off track cards):
 Everything below is designed to answer these four questions directly, not
 just to look impressive in the abstract.
 
+**Source, re-verified directly (2026-09-05):** https://razorpay.com/buildathon/
+— loaded live in a real browser (not a static fetch; this page is a JS SPA
+and a plain HTTP fetch returns an empty shell) and both the Track 04 card
+and the judging rubric above were confirmed word-for-word against the
+live-rendered text, prompted by a concern that the "AI Finance Controller"
+name might mean an LLM is a hard requirement. It doesn't: the "AI judgment"
+line is verbatim "the right tool in the right place, and where you chose
+not to use one" — an explicit reward for a deliberate no-LLM-in-the-
+decision-path design, which is what this project already does (see
+"plain math decides, AI only explains" above, and README's "What it
+deliberately does and doesn't use AI for"). **Time-sensitive**: the page
+states applications close 5 September — confirm this against today's date
+before assuming there's runway left.
+
 ## Who this is for
 
 Vani Goyal, B.Tech CE (Thapar), working solo. Relevant background: built an
