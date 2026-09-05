@@ -77,6 +77,41 @@ class TestAskEndpoint(unittest.TestCase):
     self.assertEqual(resp.status_code, 400)
 
 
+class TestDemoFixedSeed(unittest.TestCase):
+  """DEMO_FIXED_SEED is read once into api._DEMO_FIXED_SEED at import time
+  (same pattern as _ALLOW_LIVE_ORDERS), so these tests set/restore that
+  module attribute directly rather than the environment variable, which
+  would have no effect on an already-imported module.
+  """
+
+  def setUp(self):
+    self._saved = api._DEMO_FIXED_SEED
+
+  def tearDown(self):
+    api._DEMO_FIXED_SEED = self._saved
+
+  def test_unset_by_default_leaves_each_request_a_fresh_seed(self):
+    self.assertIsNone(api._DEMO_FIXED_SEED)
+    a = client.post("/batches", json={}).json()
+    b = client.post("/batches", json={}).json()
+    self.assertNotEqual(a["seed"], b["seed"])
+
+  def test_when_set_repeated_requests_reuse_it_and_match_byte_for_byte(self):
+    api._DEMO_FIXED_SEED = "42"
+    a = client.post("/batches", json={}).json()
+    b = client.post("/batches", json={}).json()
+    self.assertEqual(a["seed"], 42)
+    self.assertEqual(b["seed"], 42)
+    data_a = client.get(f"/batches/{a['batch_id']}/data").json()
+    data_b = client.get(f"/batches/{b['batch_id']}/data").json()
+    self.assertEqual(data_a, data_b)
+
+  def test_explicit_seed_in_request_still_wins_over_the_demo_seed(self):
+    api._DEMO_FIXED_SEED = "42"
+    resp = client.post("/batches", json={"seed": 7}).json()
+    self.assertEqual(resp["seed"], 7)
+
+
 def tearDownModule():
   # Single owner of the shared SQLite file's cleanup -- runs once after every
   # test in this module regardless of class order (unittest loads classes

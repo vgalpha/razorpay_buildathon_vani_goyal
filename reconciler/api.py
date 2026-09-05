@@ -35,6 +35,21 @@ _ENGINE = db.make_engine()
 # deliberately (e.g. for a local demo) to enable order_mode="live".
 _ALLOW_LIVE_ORDERS = os.environ.get("ALLOW_LIVE_ORDERS") == "1"
 
+# Operator-only recording aid, not a product feature -- no UI exposes this.
+# The frontend's "Generate sample data" button (and the customize panel on
+# top of it) never sends its own `seed`, so every click normally gets a
+# fresh time-based one (see create_batch below), which makes rehearsing a
+# pitch-video narration against fixed numbers impossible: the batch is
+# different every take. If DEMO_FIXED_SEED is set, every request that
+# doesn't explicitly pass its own `seed` reuses this one instead, so
+# repeated generate-clicks (including with the same customize-panel inputs
+# typed on camera) produce byte-identical output across takes. Unset by
+# default, so normal/judge usage of the deployed app is completely
+# unaffected. To use: set DEMO_FIXED_SEED in Vercel's project env vars,
+# redeploy, record, then UNSET it and redeploy again immediately after --
+# never leave a production deployment in this state.
+_DEMO_FIXED_SEED = os.environ.get("DEMO_FIXED_SEED")
+
 
 TOTAL_CASES_MIN = 20
 # Payload-size guardrail, not a compute-time one. Verified against the
@@ -128,7 +143,12 @@ def create_batch(req: GenerateRequest):
       status_code=403,
       detail="order_mode='live' is disabled on this deployment "
              "(set ALLOW_LIVE_ORDERS=1 to enable it deliberately)")
-  seed = req.seed if req.seed is not None else int(time.time() * 1000) % 100_000
+  if req.seed is not None:
+    seed = req.seed
+  elif _DEMO_FIXED_SEED is not None:
+    seed = int(_DEMO_FIXED_SEED)
+  else:
+    seed = int(time.time() * 1000) % 100_000
   fault_counts = _resolve_fault_counts(req, seed)
   dataset = generate_dataset(seed=seed, order_mode=req.order_mode, fault_counts=fault_counts)
   batch_id = uuid.uuid4().hex[:12]
