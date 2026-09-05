@@ -160,26 +160,29 @@ still picture, it's the live Chrome window.
 
 **Step 5**
 - **Action:** Scroll down to the section titled **"What needs a human"**,
-  then **"Flagged items — with the actual reason."** Find one card from
-  each of these 4 categories (the category name is shown on each card —
-  the exact ID number will be different every time you generate, that's
-  normal, just use whichever real card you find):
-  - **multi_payment_ambiguous** (example seen when this was tested:
-    `order_uQ2hU5tGtQAuzS`)
-  - **books_duplicate_invoice_collision** (example seen:
-    `order_xQ8VS8IALVUj4A`)
-  - **high_value_gate** (example seen: `order_rKcWWlEHPC6rlL`)
-  - **disputed** (example seen: `order_Ct3LBtKNdN9Vg8`)
-- **Say** (one line per card, in this order):
-  1. *"Order has multiple payments; recon payment-lines carry order_id
-     only, no payment_id, so a settlement line cannot be attributed to one
-     specific payment."*
-  2. *"Two open invoices match this customer and amount; books alone
-     cannot say which one this payment settles — abstaining. Same
-     principle as the last one, books side."*
-  3. *"Amount exceeds the auto-close ceiling. Not a confidence judgment —
-     a rule."*
-  4. *"Dispute ID present; never auto-closed regardless of amount."*
+  then **"Flagged items — with the actual reason."** This is a table —
+  each row has a small **▶** arrow next to its category name. Clicking
+  anywhere on a row expands it and shows the real underlying
+  payment/settlement/invoice records beneath it, not just the summary
+  text. Do this for three rows, in order:
+  1. Find a row labeled **multi_payment_ambiguous** (example seen when
+     this was tested: `order_uQ2hU5tGtQAuzS`). **Click the row to expand
+     it.** Real payment and settlement records now show underneath.
+  2. Find a row labeled **books_duplicate_invoice_collision** (example
+     seen: `order_xQ8VS8IALVUj4A`). **Click it to expand.** Real invoice
+     records now show underneath.
+  3. Find a row labeled **disputed** (example seen: `order_Ct3LBtKNdN9Vg8`).
+     No need to expand this one — just point at it.
+- **Say** (one line per row, matched to what's actually open on screen):
+  1. (after expanding multi_payment_ambiguous) *"This order has two
+     separate payments, but the settlement line only carries an order ID
+     — no payment ID. So there's genuinely no way to tell which payment it
+     settles."*
+  2. (after expanding books_duplicate_invoice_collision) *"Same problem,
+     books side. Two open invoices, same customer, same amount — there's
+     no way to know which one this payment actually pays for."*
+  3. (pointing at the disputed row, not expanded) *"This one's disputed,
+     so it's held, no matter what the numbers say."*
 
 **Step 6**
 - **Action:** Scroll further down to **"Per-fault-class accuracy"** and
