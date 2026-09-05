@@ -170,3 +170,84 @@ preference, not settled by planning alone.
 6. 4:15–4:45 — why it's real: built on Razorpay's actual documented schema,
    Orders pulled from their live test API.
 7. 4:45–5:00 — close, tie back to the internship pitch.
+
+**Superseded by a full rewrite, 2026-09-05**: this 7-beat outline is still
+the correct shape, but `docs/VIDEO_SCRIPT.md` now has the actual finalized
+shot-by-shot script mapped to today's live product (ground-truth
+transparency, the discoverable chat, the pluggable LLM layer all shipped
+today), with real numbers/case-IDs from a fixed `seed=42` run rather than
+placeholders, click-by-click instructions, and a production plan. Read
+that file directly rather than this outline when actually recording.
+
+## Video/submission requirements — re-verified directly, 2026-09-05
+
+Re-checked razorpay.com/buildathon live in a real browser (screenshots, not
+text-fetch — same JS-SPA caveat as before) specifically for anything about
+the pitch video beyond "5 minutes," which was all that had been confirmed
+previously. Found one new thing, word-for-word off the page's own "THE
+PROOF" section (what they read instead of a resume):
+
+> a repo that actually runs
+> a 5-minute video of it working
+> what broke at 2 AM, and how you got out
+
+That third line is the video-and-repo-facing version of the general judging
+card's "Failure recovery — what broke, and what you did about it" — it's
+not just an interview-stage question, Razorpay's own site lists it as one
+of exactly three things they read. This project already has the real
+material for it (the Definition of done section above already names it:
+"the build's own real obstacle (PAN/API uncertainty, resolved by checking,
+not guessing) narrated honestly") — `docs/VIDEO_SCRIPT.md`'s beat 6 is
+where it goes on camera.
+
+Also confirmed while re-checking: there are genuinely five tracks (Growth &
+Agentic Commerce, Risk Manager, Revenue Recovery, Finance Controller, Open
+Track) — the "Five tracks" claim earlier in this doc is accurate, not
+approximate. Track 04's card text was re-confirmed word-for-word identical
+to what's already quoted above.
+
+**What was not verified, and why**: "Apply now" leads to a real Google Form
+(a live one, pre-filled with the account's own email — this is the actual
+application, not a mockup) whose first page only asks eligibility questions
+(email, name, college, graduation year, in-person availability) before a
+"Next" button gates the rest, which almost certainly contains the actual
+video-submission field (upload vs. link, format). Advancing past that first
+page requires entering personal data and clicking through a real
+application form — outside what this session was authorized to do
+unattended. **Vani needs to open the form herself** to see the exact video
+submission mechanics (see "Only Vani can do" in VIDEO_SCRIPT.md).
+
+Secondary sources (student-hackathon aggregator blogs, not Razorpay's own
+page) claim the form's field is literally named "5-Minute Pitch Video URL
+(Unlisted)" and includes a dedicated "what broke and how it was resolved"
+text field — plausible and consistent with the primary-source "THE PROOF"
+text above, but **unconfirmed against the actual form**, so treat it as a
+reasonable default (upload to YouTube as unlisted) rather than a settled
+fact. Two independently-fetched aggregator articles agreed with each other
+and with the primary site on "5 minutes" and the September 5 deadline date
+(no time-of-day given anywhere, including the primary site's own "You have
+from today till 5 September" copy) but did not agree with each other on
+the unlisted-YouTube-link claim strongly enough to treat it as verified.
+
+One decorative element worth flagging so it isn't mistaken for something
+real: the buildathon page has a small clock-style counter bottom-right
+(e.g. "00:12", climbing to "02:13" while scrolling). This is NOT a real
+countdown to the deadline — it ticks up, not down, and tracks time spent on
+page (or scroll position), not a deadline. The actual deadline information
+on the page is the plain-text "You have from today till 5 September. The
+clock is already running." — a date, not a time-of-day.
+
+## Competitor pitch videos — searched, none found (expected)
+
+Searched for other Razorpay AI Buildathon 2026 submission/pitch videos (for
+tone/pacing reference) and found none — only promotional/explainer content
+about the program itself made by career-content YouTube channels, not
+actual student submissions. This is the expected result, not a research
+gap: submission videos are very likely unlisted/private links submitted
+directly to Razorpay, not publicly indexed, and the buildathon is
+currently live (applications closing today), so no public archive of past
+submissions would exist yet either. `docs/VIDEO_SCRIPT.md`'s production
+guidance is grounded instead in general hackathon-pitch-video best
+practices (Devpost's own judging and demo-video guides, cross-checked
+against similar sources), which is the right substitute given no
+buildathon-specific examples exist to draw from.

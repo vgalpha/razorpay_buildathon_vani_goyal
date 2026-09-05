@@ -952,11 +952,63 @@ deployment as of this writing; setting one is a deliberate call left to
 Vani (cost, added latency, demo-failure risk on a live call), not something
 changed here.
 
+## Deterministic demo seed + finalized pitch-video script (2026-09-05)
+
+**`DEMO_FIXED_SEED` env var added** (`reconciler/api.py`, next to the
+existing `_ALLOW_LIVE_ORDERS` pattern) — operator-only, off by default, no
+UI exposure. When set, any `/batches` request that doesn't pass its own
+`seed` reuses this one instead of the normal time-based one, so repeated
+"Generate sample data" clicks (including with customize-panel inputs typed
+on top) reproduce byte-identical output. Exists purely so the pitch video
+can be rehearsed and re-shot against fixed narration instead of a different
+random batch every take. 3 new tests (`TestDemoFixedSeed` in
+`tests/test_api.py`); 80/80 backend tests passing.
+
+**Verified live on production, then reverted**: set `DEMO_FIXED_SEED=42` in
+Vercel's prod env, redeployed, confirmed two separate "Generate sample
+data" calls (one plain, one with `total_cases=150`, matching what the
+customize-panel demo beat will do) came back byte-for-byte identical via
+`/batches/{id}/data`, then removed the env var and redeployed again —
+confirmed production is back to fresh-seed-per-request. Production is NOT
+left in demo mode.
+
+**`docs/VIDEO_SCRIPT.md` fully rewritten** against the actual current
+product (the previous version referenced button labels and panels that no
+longer exist — "new batch," "run the loop," a "Known limitation" panel that
+moved to the README weeks ago). The rewrite: real numbers and real case IDs
+captured directly from running `seed=42` locally (not invented
+placeholders — 207 cases, 100.0% accuracy, 0.00% false auto-close, four
+real escalation examples with their exact `reason_detail` text quoted
+verbatim), a beat for today's ground-truth transparency feature, a beat
+that deliberately shows the chat's graceful degradation on an unrecognized
+question (ties directly to the judging rubric's "the right tool in the
+right place, and where you chose not to use one" line), click-by-click
+instructions synced to the script, a division of labor (what's already
+done vs. what only Vani can do), and practical recording guidance grounded
+in Devpost's own hackathon-demo-video advice (searched, no
+buildathon-specific example videos exist yet to draw from instead — see
+`docs/PROJECT_CONTEXT.md` for why that's the expected result, not a gap).
+
+Also re-verified razorpay.com/buildathon live (screenshots, not text-fetch)
+specifically for video-submission requirements beyond "5 minutes" — found
+the page's own "THE PROOF" section names "what broke at 2 AM, and how you
+got out" as one of exactly three things read, alongside the repo and the
+video. Confirmed the real application is a live Google Form (reached via
+"Apply now") whose first page only asks eligibility questions before
+gating the rest — did not proceed past it, since that requires entering
+personal data and submitting a real form, outside what this session should
+do unattended. See `docs/PROJECT_CONTEXT.md`'s "Video/submission
+requirements" entry for the full trail, including an unconfirmed secondary-
+source claim that the video field wants an unlisted YouTube link.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
-`docs/VIDEO_SCRIPT.md` is a full shot-by-shot script mapped to the real,
-working, now-live console (exact button labels, panel names, a real example
-answer from the Q&A demo) — and it can now be shot against the actual
-deployed URL instead of a local server if preferred. Recording itself still
-needs Vani; nothing else in the build is blocking it.
+`docs/VIDEO_SCRIPT.md` is now a fully rewritten shot-by-shot script mapped
+to today's live console (ground-truth transparency, the discoverable chat,
+the pluggable LLM layer, all with real numbers from a fixed demo seed) —
+turn on `DEMO_FIXED_SEED` (instructions at the top of that file), rehearse
+once, record, then turn it back off. Recording itself still needs Vani;
+nothing else in the build is blocking it. Opening the real application form
+past its eligibility page (to confirm the exact video-submission mechanics)
+also needs Vani specifically.
