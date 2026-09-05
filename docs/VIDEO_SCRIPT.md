@@ -87,7 +87,7 @@ each of the 5 cards before moving to Part 2.
 | `card1_problem_1.jpg` | `card1.mp4` | *"A customer pays. The gateway settles it. The books record it. Three numbers — that are supposed to be the same number."* |
 | `card2_problem_2.jpg` | `card2.mp4` | *"Most companies still check that by hand. One missed mismatch is real money, quietly gone."* |
 | `card3_tieout_intro.jpg` | `card3.mp4` | *"Presenting TieOut. It checks your payments against what settled, and what the books say — closes what it's sure about, automatically, and asks a human about everything else. Let's see it in action."* |
-| `card4_failure_recovery.jpg` | `card4.mp4` | *"What broke — and how we found out. Here's a real one. The History page felt slow, even with almost no history in it. The obvious guess was a heavy database query — so we read the actual query and checked the fetch pattern, and that guess was wrong: the query was already lean, no missing pagination, nothing pulling more data than it needed. The real cause was upstream of the query entirely — every server cold start was silently re-running a full schema-migration check before answering anything at all, every single time. Fixed by checking once instead of blindly retrying it, and wrote a test that proves it still repairs a genuinely broken database when one actually shows up. That's the habit this project runs on — check before you guess, then fix the thing that's actually wrong, not the thing that looked wrong."* |
+| `card4_failure_recovery.jpg` | `card4.mp4` | *"What broke — and how we found out. Here's a real one, from today. We wired a live AI model into the product's chat, and it broke instantly — silently. Every question just quietly fell back to the safe default, like nothing was even connected. The easy guess was a bad API key. It wasn't. We went straight to the provider's own API instead of guessing, and found two real bugs stacked on each other: the model we'd defaulted to had just been deprecated, and its replacement was so slow out of the box — over twenty seconds a call — that every request was silently timing out before an answer could ever come back. Found both, fixed both, verified live against the real API before it ever touched production again. That's the standard here: when something quietly falls back to safe, don't assume it's fine — go find out why it's hiding."* |
 | `card5_close.jpg` | `card5.mp4` | *"None of this is invented. Order data comes live from Razorpay's actual test-mode API. Payment and settlement data is built field-for-field to match their real documented schema — including the exact quirk that makes the multi-payment case genuinely ambiguous, not staged for a demo. Knowing when not to act — that's the judgment this role is actually asking to see."* |
 
 Card 4's line is long — it's fine to read it a little slower, or pause
@@ -120,80 +120,92 @@ still picture, it's the live Chrome window.
    says **Say:**, read that line out loud while or right after you do the
    click.
 
-**1.** Click **"Customize this batch (optional)"** to open it — it's the
-small link right under the "Generate sample data" button. Click into the
-box labeled **total-transactions** and type **150**. Leave every other box
-empty. Click **"Generate sample data."** Wait for it to finish loading.
-**Say:** *"Every one of 16 fault types is named and countable — not a
-black box."* This one click both proves the customize option is real and
-produces the actual batch the rest of this video uses — no need to
-generate twice or start over.
+**Step 1**
+- **Action:** Click **"Customize this batch (optional)"** to open it —
+  it's the small link right under the "Generate sample data" button. Click
+  into the box labeled **total-transactions** and type **150**. Leave
+  every other box empty. Click **"Generate sample data."** Wait for it to
+  finish loading. (This one click both proves the customize option is real
+  and produces the actual batch the rest of this video uses — no need to
+  generate twice or start over.)
+- **Say:** *"Every one of 16 fault types is named and countable — not a
+  black box."*
 
-**2.** Click **"Reconcile now."** Wait for the four number-cards to appear
-on screen.
-**Say:** *"100% accuracy. Zero incorrect approvals. A couple of
-milliseconds to check every one of these records against each other."*
-Pause on that for a second — let it land — then: *"And this isn't a number
-we're just asserting. Every one of these cases was checked against a
-known-correct answer, and you can see exactly which ones — right here."*
-(Then move straight into step 3, below, which shows it.)
+**Step 2**
+- **Action:** Click **"Reconcile now."** Wait for the four number-cards to
+  appear on screen.
+- **Say:** *"100% accuracy. Zero incorrect approvals. A couple of
+  milliseconds to check every one of these records against each other."*
+  Pause for a second — let it land — then: *"And this isn't a number we're
+  just asserting. Every one of these cases was checked against a
+  known-correct answer, and you can see exactly which ones — right here."*
+  (Then move straight into Step 3, which shows it.)
 
-**3.** Click the **"Expected outcomes"** tab (it's inside the "What's in
-this batch" section).
+**Step 3**
+- **Action:** Click the **"Expected outcomes"** tab (it's inside the
+  "What's in this batch" section).
+- **Say:** *(nothing — just let it be visible on screen for a moment)*
 
-**4.** Click **"Compare against expected outcomes ▸."** Click the checkbox
-**"Show mismatches only"** once to turn it off.
-**Say:** *"Zero mismatches — every case matched its expected outcome. And
-if one hadn't, you'd see exactly which case, and why, right here — this
-isn't a black box, it's checkable."*
+**Step 4**
+- **Action:** Click **"Compare against expected outcomes ▸."** Click the
+  checkbox **"Show mismatches only"** once to turn it off.
+- **Say:** *"Zero mismatches — every case matched its expected outcome.
+  And if one hadn't, you'd see exactly which case, and why, right here —
+  this isn't a black box, it's checkable."*
 
-**5.** Scroll down to the section titled **"What needs a human"**, then
-**"Flagged items — with the actual reason."** You'll see a list of cards.
-Find one card from each of these 4 categories (the category name is shown
-on each card — the exact ID number will be different every time you
-generate, that's normal, just use whichever real card you find):
-
-   - A card labeled **multi_payment_ambiguous** (example seen when this
-     was tested: `order_uQ2hU5tGtQAuzS`).
-     **Say:** *"Order has multiple payments; recon payment-lines carry
-     order_id only, no payment_id, so a settlement line cannot be
-     attributed to one specific payment."*
-   - A card labeled **books_duplicate_invoice_collision** (example seen:
-     `order_xQ8VS8IALVUj4A`).
-     **Say:** *"Two open invoices match this customer and amount; books
-     alone cannot say which one this payment settles — abstaining. Same
+**Step 5**
+- **Action:** Scroll down to the section titled **"What needs a human"**,
+  then **"Flagged items — with the actual reason."** Find one card from
+  each of these 4 categories (the category name is shown on each card —
+  the exact ID number will be different every time you generate, that's
+  normal, just use whichever real card you find):
+  - **multi_payment_ambiguous** (example seen when this was tested:
+    `order_uQ2hU5tGtQAuzS`)
+  - **books_duplicate_invoice_collision** (example seen:
+    `order_xQ8VS8IALVUj4A`)
+  - **high_value_gate** (example seen: `order_rKcWWlEHPC6rlL`)
+  - **disputed** (example seen: `order_Ct3LBtKNdN9Vg8`)
+- **Say** (one line per card, in this order):
+  1. *"Order has multiple payments; recon payment-lines carry order_id
+     only, no payment_id, so a settlement line cannot be attributed to one
+     specific payment."*
+  2. *"Two open invoices match this customer and amount; books alone
+     cannot say which one this payment settles — abstaining. Same
      principle as the last one, books side."*
-   - A card labeled **high_value_gate** (example seen: `order_rKcWWlEHPC6rlL`).
-     **Say:** *"Amount exceeds the auto-close ceiling. Not a confidence
-     judgment — a rule."*
-   - A card labeled **disputed** (example seen: `order_Ct3LBtKNdN9Vg8`).
-     **Say:** *"Dispute ID present; never auto-closed regardless of
-     amount."*
+  3. *"Amount exceeds the auto-close ceiling. Not a confidence judgment —
+     a rule."*
+  4. *"Dispute ID present; never auto-closed regardless of amount."*
 
-**6.** Scroll further down to **"Per-fault-class accuracy"** and pause on
-it briefly.
-**Say:** *"Sixteen fault types. Every single one at 100%."*
+**Step 6**
+- **Action:** Scroll further down to **"Per-fault-class accuracy"** and
+  pause on it briefly.
+- **Say:** *"Sixteen fault types. Every single one at 100%."*
 
-**7.** Click the **"Ask a question"** button (either the small round one
-in the bottom-right corner, or the "Ask a question about this run" button
-near the top). Click the chip that says **"what's the biggest exception?"**
-**Wait quietly — don't talk — for about 10-15 seconds** while it answers
-(you'll trim this waiting time out later, in Part 3, step 7).
+**Step 7**
+- **Action:** Click the **"Ask a question"** button (either the small
+  round one in the bottom-right corner, or the "Ask a question about this
+  run" button near the top). Click the chip that says **"what's the
+  biggest exception?"**
+- **Say:** *(nothing — wait quietly for about 10-15 seconds while it
+  answers; you'll trim this waiting time out later, in Part 3, step 7)*
 
-**8.** Type a question it won't recognize, for example:
-**"what's your favorite color?"** and press Enter or click "Ask."
-**Wait quietly again — this one can take 20-25 seconds.** Once the answer
-appears, then **say:** *"Plain math decides every match. AI only ever
-explains a decision — it can never make one. Swap in Anthropic, OpenAI,
-Gemini, whatever you want — it doesn't matter which, because even when
-one's configured, it only ever phrases an already-computed fact, or
-answers strictly from this run's aggregate numbers, labeled as
-AI-generated when it does."*
+**Step 8**
+- **Action:** Type a question it won't recognize, for example: **"what's
+  your favorite color?"** and press Enter or click "Ask." Wait quietly —
+  this one can take 20-25 seconds.
+- **Say** (once the answer appears): *"Plain math decides every match. AI
+  only ever explains a decision — it can never make one. Swap in
+  Anthropic, OpenAI, Gemini, whatever you want — it doesn't matter which,
+  because even when one's configured, it only ever phrases an
+  already-computed fact, or answers strictly from this run's aggregate
+  numbers, labeled as AI-generated when it does."*
 
-**9. Stop recording** — press **Windows key + Alt + R** again. Open
-**File Explorer → This PC → Videos → Captures**, find the newest file,
-rename it to **`demo.mp4`**, and cut-paste it into your TieOut Video
-folder (same as Part 1, step 9).
+**Step 9**
+- **Action:** Stop recording — press **Windows key + Alt + R** again. Open
+  **File Explorer → This PC → Videos → Captures**, find the newest file,
+  rename it to **`demo.mp4`**, and cut-paste it into your TieOut Video
+  folder (same as Part 1, step 9).
+- **Say:** *(nothing — recording is over)*
 
 You should now have 6 files total in that folder: `card1.mp4` through
 `card5.mp4`, plus `demo.mp4`.
