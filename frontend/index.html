@@ -613,6 +613,11 @@ let batchId = null;
 let datasetSummary = null;   // {payments, settlement_lines, invoices, cases}
 let datasetCache = null;     // fetched lazily the first time the preview is shown
 let lastRun = null;
+// True while #tab-new is showing a run drilled into from History (see the
+// data-view-run handler) rather than the user's own new-run session --
+// batchId/lastRun/etc. above get overwritten with that historical run's
+// data either way, so this is the only way to tell the two apart.
+let viewingHistoricalRun = false;
 
 // -------------------------------------------------------------- nav tabs --
 document.querySelectorAll(".nav-tab").forEach((tab) => {
@@ -638,6 +643,15 @@ function setActiveNavTab(name) {
 }
 
 function switchTab(name) {
+  // Clicking "New run" while looking at a run drilled into from History
+  // would otherwise just relabel the nav pill -- #tab-new is already the
+  // active panel in that state (see the data-view-run handler), so nothing
+  // about the visible content would change and the click would look like
+  // it did nothing. Take it at its word and actually start a new run.
+  if (name === "new" && viewingHistoricalRun) {
+    resetToNewRunHero();
+    return;
+  }
   setActiveNavTab(name);
   document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${name}`));
   if (name === "history") {
@@ -739,8 +753,11 @@ async function generateBatch() {
   }
 }
 
-$("btn-start-over").addEventListener("click", () => {
+// Shared by "Start a new run", the "New run" nav pill, and the brand mark
+// -- all three mean the same thing when a historical run is on screen.
+function resetToNewRunHero() {
   batchId = null; datasetSummary = null; datasetCache = null; lastRun = null;
+  viewingHistoricalRun = false;
   resetResultPanels();
   $("data-preview-section").hidden = true;
   $("btn-preview-2").textContent = "View data";
@@ -748,9 +765,11 @@ $("btn-start-over").addEventListener("click", () => {
   // is currently the active nav tab (see setActiveNavTab) even though the
   // #tab-new panel is what's showing -- starting a fresh run means the
   // user is no longer browsing history, so restore "New run" as active.
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "tab-new"));
   setActiveNavTab("new");
   showStage("hero");
-});
+}
+$("btn-start-over").addEventListener("click", resetToNewRunHero);
 
 // -------------------------------------------------------------- reconcile --
 $("btn-run").addEventListener("click", runReconciliation);
@@ -826,7 +845,7 @@ function renderCards(ev, wallTimeSeconds) {
     <div class="card">
       <div class="label">Time taken</div>
       <div class="value">${ms < 1000 ? ms.toFixed(1) + "ms" : (ms / 1000).toFixed(2) + "s"}</div>
-      <div class="value-note">&asymp; ${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})}/s at this rate</div>
+      <div class="value-note">&asymp; ${ev.throughput_per_sec.toLocaleString(undefined, {maximumFractionDigits:0})} transactions/s at this rate</div>
     </div>
     <div class="card"><div class="label">Transactions checked</div><div class="value">${ev.total_cases.toLocaleString()}</div></div>
   `;
@@ -1462,6 +1481,7 @@ $("history-body").addEventListener("click", async (e) => {
     datasetSummary = { payments: null, settlement_lines: null, invoices: null, cases: data.eval.total_cases };
     datasetCache = null;
     lastRun = data;
+    viewingHistoricalRun = true;
     render(data, { viewingHistorical: true, createdAt: cardEl ? cardEl.textContent : createdAt });
     $("data-preview-section").hidden = true;
     $("btn-preview-2").textContent = "View data";
