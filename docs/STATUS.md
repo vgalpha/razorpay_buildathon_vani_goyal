@@ -1137,6 +1137,49 @@ labeled. Noted as arguably a stronger demo, but a different one from what
 was scripted, and callable out loud on camera rather than silently
 narrated as something it no longer is.
 
+## Video script rewritten as literal step-by-step; 5 card images generated (2026-09-05)
+
+Two gaps surfaced once Vani actually tried to follow the script while
+recording: (1) the "Action: Show Card 1" beats assumed cards already
+existed as usable assets, when they didn't yet, and didn't explain *how*
+a card is supposed to appear during a screen recording at all (it doesn't
+— cards get made and assembled separately, in editing, not shown live);
+(2) she needs to hand this script to someone else, so it can't assume any
+editing/recording knowledge.
+
+**5 card images generated and delivered.** Built as plain HTML/CSS (dark
+background, same colors and font as the live app — `#0b0d10` background,
+`#5b8dee` accent, the app's own `-apple-system/Segoe UI/Helvetica`
+stack — deliberately not a generic stock-photo or PowerPoint-template
+look, which would visually clash with the product's own screen-recorded
+UI), rendered in a real Chrome tab via a throwaway local HTTP server (the
+Claude-in-Chrome extension blocks `file://` navigation, so a
+`python3 -m http.server` was needed to serve the HTML), screenshotted, and
+saved to `video_cards/` in the repo (also sent directly to Vani as files).
+Resolution is capped at ~1323x896 by the actual machine's screen size (a
+1512x982 logical-pixel display), not the 1920x1080 originally assumed —
+noted but not a real problem, since Premiere scales an image to fit
+whatever sequence resolution `demo.mov` establishes when it's the first
+clip with real video dimensions.
+
+**`VIDEO_SCRIPT.md` restructured entirely around the actual physical
+production process**, not video timestamps. It now reads as three literal
+parts: (1) record each of the 5 cards as its own tiny video — a picture
+made full-screen in Preview, screen-recorded in QuickTime with the
+microphone on while reading one line, saved as `card1.mov` through
+`card5.mov` — so the card and the voiceover are already combined into one
+file, with no separate audio-sync step needed later; (2) record one
+continuous live demo the same way, `demo.mov`; (3) exact click-path
+instructions for assembling all 6 files in Adobe Premiere Pro — import,
+drag onto the timeline in the specific order card1→card2→card3→demo→
+card4→card5, an optional razor-tool cut to trim the two Gemini-wait
+pauses inside `demo.mov`, then File → Export → Media. Every step names the
+literal menu path and keyboard shortcut (Command+Space, Control+Command+F,
+etc.) rather than assuming familiarity with either app. The narration text
+per card and the demo's click/say sequence are unchanged from the prior
+version's content — this was a structural/format rewrite, not a rewrite of
+what's actually said.
+
 ## Remaining — needs Vani specifically
 
 **Recording the actual pitch video.** Not just pending — actively prepped:
