@@ -600,6 +600,9 @@ const money = (paise) => Number.isFinite(paise)
   : "(invalid amount)";
 const pct = (x) => `${(x * 100).toFixed(x < 1 ? 2 : 1)}%`;
 const when = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+const timestamp = (v) => Number.isFinite(v)
+  ? new Date(v * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+  : `(invalid: ${JSON.stringify(v)})`;
 
 async function api(path, opts) {
   const res = await fetch(API_BASE + path, opts);
@@ -1321,12 +1324,15 @@ const RECORD_COLUMNS = {
   payments: [
     { key: "id", label: "Payment ID", mono: true },
     { key: "order_id", label: "Order ID", mono: true },
+    { key: "customer_id", label: "Customer", mono: true },
     { key: "amount", label: "Amount", fmt: money },
     { key: "fee", label: "Fee", fmt: money },
     { key: "tax", label: "Tax (GST on fee)", fmt: money },
     { key: "method", label: "Method" },
     { key: "captured", label: "Captured", fmt: (v) => v ? "yes" : "no" },
     { key: "amount_refunded", label: "Refunded", fmt: money },
+    { key: "dispute_id", label: "Dispute ID", mono: true, fmt: (v) => v ?? "—" },
+    { key: "created_at", label: "Created at", fmt: timestamp },
   ],
   settlement_lines: [
     { key: "entity_id", label: "Settlement ID", mono: true },
@@ -1338,6 +1344,7 @@ const RECORD_COLUMNS = {
     { key: "type", label: "Type" },
     { key: "settled", label: "Settled", fmt: (v) => v ? "yes" : "no" },
     { key: "settlement_utr", label: "UTR" },
+    { key: "dispute_id", label: "Dispute ID", mono: true, fmt: (v) => v ?? "—" },
   ],
   invoices: [
     { key: "id", label: "Invoice ID", mono: true },
@@ -1390,14 +1397,18 @@ const CSV_COLUMNS = {
   payments: [
     ["payment_id", (p) => p.id], ["order_id", (p) => p.order_id],
     ["amount_inr", (p) => (p.amount / 100).toFixed(2)], ["currency", (p) => p.currency],
+    ["fee_inr", (p) => (p.fee / 100).toFixed(2)], ["tax_inr", (p) => (p.tax / 100).toFixed(2)],
     ["method", (p) => p.method], ["captured", (p) => p.captured],
     ["amount_refunded_inr", (p) => (p.amount_refunded / 100).toFixed(2)],
     ["customer_id", (p) => p.customer_id],
+    ["dispute_id", (p) => p.dispute_id], ["created_at", (p) => p.created_at],
   ],
   settlement_lines: [
     ["settlement_id", (s) => s.entity_id], ["order_id", (s) => s.order_id],
     ["payment_id", (s) => s.payment_id], ["amount_inr", (s) => (s.amount / 100).toFixed(2)],
+    ["fee_inr", (s) => (s.fee / 100).toFixed(2)], ["tax_inr", (s) => (s.tax / 100).toFixed(2)],
     ["type", (s) => s.type], ["settled", (s) => s.settled], ["settlement_utr", (s) => s.settlement_utr],
+    ["dispute_id", (s) => s.dispute_id],
   ],
   invoices: [
     ["invoice_id", (i) => i.id], ["customer_id", (i) => i.customer_id],
